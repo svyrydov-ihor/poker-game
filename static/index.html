@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Poker game</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/scripts.js"></script>
+    <script src="/static/buttons_onclick.js"></script>
+</head>
+<body id="body">
+    <table style="width:100%">
+        <tr>
+            <th width="50%" style="position: relative; text-align: left; vertical-align: top;">
+                <h1 align="left">Poker game</h1>
+                <h3 align="left">Community cards:</h3>
+                <div id="community_cards"
+                        style="display: flex;">
+                </div>
+
+                <div id="players">
+                </div>
+
+                <div id = "self_buttons"
+                    class="buttons_div">
+
+                    <button id ="ready_button"
+                        onclick="readyButtonClick(this)"
+                        style="display: none;
+                            color: red;"
+                    >Ready</button>
+
+                    <button id ="call_button"
+                        onclick="readyButtonClick(this)"
+                        style="display: none;"
+                    >Call</button>
+
+                    <button id ="check_button"
+                        onclick="readyButtonClick(this)"
+                        style="display: none;"
+                    >Check</button>
+
+                    <button id ="raise_button"
+                        onclick="readyButtonClick(this)"
+                        style="display: none;"
+                    >Raise</button>
+
+                    <button id ="fold_button"
+                        onclick="readyButtonClick(this)"
+                        style="display: none;"
+                    >Fold</button>
+
+                </div>
+            </th>
+            <th style="position: relative; text-align: left; vertical-align: top;">
+                <h1>Game logs:</h1>
+                <ul id="game_logs">
+                    <li>test message</li>
+                </ul>
+            </th>
+        </tr>
+    </table>
+</body>
+</html>

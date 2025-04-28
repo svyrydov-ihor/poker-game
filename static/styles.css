@@ -1,0 +1,40 @@
+.row{
+    margin-right: 10px;
+}
+
+.player_button{
+    margin-right: 10px;
+}
+
+.buttons_div{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    justify-content: left;
+}
+
+/*
+html, body {
+    background-color: black;
+    color: white;
+}
+
+
+a {
+    color: lightblue;
+}
+
+
+button {
+    background-color: #333;
+    color: white;
+    border: 1px solid white;
+}
+
+
+input, textarea {
+    background-color: #333;
+    color: white;
+    border: 1px solid white;
+}
+*/
