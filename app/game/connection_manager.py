@@ -1,14 +1,15 @@
 import asyncio
-from typing import Dict, Optional
+from typing import Dict
 
 from starlette.websockets import WebSocket
 
-from app.game.game_phases import TurnResult, PlayerChoice
+from app.game.game_phases import TurnResponse, PlayerChoice
+
 
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[int, WebSocket] = {}
-        self.pending_turns: Dict[int, asyncio.Future[TurnResult]] = {}
+        self.pending_turns: Dict[int, asyncio.Future[TurnResponse]] = {}
 
     async def connect(self, websocket: WebSocket, id):
         await websocket.accept()
@@ -17,7 +18,7 @@ class ConnectionManager:
     def disconnect(self, id):
         if id in self.pending_turns:
             if not self.pending_turns[id].done():
-                self.pending_turns[id].set_result(TurnResult(player_choice=PlayerChoice.FOLD, amount=0))
+                self.pending_turns[id].set_result(TurnResponse(choice=PlayerChoice.FOLD, amount=0))
             del self.pending_turns[id]
         self.active_connections.pop(id)
 
@@ -31,3 +32,29 @@ class ConnectionManager:
     async def log(self, msg):
         await self.broadcast({"LOG": msg})
 
+    async def request_turn(self, player_id: int, turn_options: list[PlayerChoice], bet: float) -> TurnResponse:
+        """Sends a turn request to a player and waits for their response."""
+        if player_id not in self.active_connections:
+            return TurnResponse(choice=PlayerChoice.FOLD, amount=0)
+
+        await self.send_personal(player_id, {
+            "TURN_REQUEST": {"options": [choice.value for choice in turn_options], "bet": bet}})
+
+        # Wait for the player's response
+        try:
+            # Create a new future for this turn if one doesn't exist or is already done
+            if player_id not in self.pending_turns or self.pending_turns[player_id].done():
+                self.pending_turns[player_id] = asyncio.Future()
+
+            result = await self.pending_turns[player_id]
+            return result
+        except asyncio.CancelledError:
+            return TurnResponse(choice=PlayerChoice.FOLD, amount=0)
+
+    def process_turn_response(self, player_id: int, turn_response: TurnResponse):
+        """Processes the turn response received from a player."""
+        if player_id in self.pending_turns and not self.pending_turns[player_id].done():
+            # Validate the received choice against the allowed options (optional, but good practice)
+            # For simplicity, we'll assume the client sends a valid choice from the options provided earlier
+            turn_result = TurnResponse(choice=turn_response.choice, amount=turn_response.amount)
+            self.pending_turns[player_id].set_result(turn_result)

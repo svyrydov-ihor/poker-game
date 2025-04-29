@@ -1,5 +1,6 @@
 import enum
 from abc import ABC
+from typing import Optional
 
 from pydantic.v1 import BaseModel
 
@@ -11,7 +12,10 @@ class GamePhase(enum.Enum):
     POCKET_CARDS = "POCKET_CARDS"
     PRE_FLOP_SB = "PRE_FLOP_SB"
     PRE_FLOP_BB = "PRE_FLOP_BB"
-    TURN = "TURN"
+    TURN_REQUEST = "TURN_REQUEST"
+    TURN_HIGHLIGHT = "TURN_HIGHLIGHT"
+    TURN_RESULT = "TURN_RESULT"
+    POT = "POT"
 
 class PlayerChoice(enum.Enum):
     CALL = "CALL"
@@ -30,6 +34,8 @@ class AbsGamePhaseArgs(ABC, BaseModel):
 def convert_players_to_dict(data):
     if isinstance(data, Player):
         return data.to_dict()
+    elif isinstance(data, PlayerChoice):
+        return data.value
     elif isinstance(data, list):
         return [convert_players_to_dict(item) for item in data]
     elif isinstance(data, dict):
@@ -54,11 +60,18 @@ class PreFlopBBArgs(AbsGamePhaseArgs):
 class PocketCardsArgs(AbsGamePhaseArgs):
     pocket_cards: list[dict]
 
-class TurnArgs(AbsGamePhaseArgs):
-    curr_player: Player
-    player_choice: PlayerChoice
+class TurnResultArgs(AbsGamePhaseArgs):
+    player: Player
+    choice: PlayerChoice
     amount: float
 
-class TurnResult(BaseModel):
-    player_choice: PlayerChoice
+class TurnHighlightArgs(AbsGamePhaseArgs):
+    prev_player: Player
+    curr_player: Optional[Player] = None
+
+class PotArgs(AbsGamePhaseArgs):
+    pot: float
+
+class TurnResponse(BaseModel):
+    choice: PlayerChoice
     amount: float

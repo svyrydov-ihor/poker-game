@@ -18,6 +18,18 @@ ws.onmessage = function (event) {
             else
                 handler = new NewPlayerHandler(player);
             break;
+        case "TURN_HIGHLIGHT":
+            handler = new TurnHighlightHandler(data[key1]);
+            break;
+        case "TURN_RESULT":
+            handler = new TurnResultHandler(data[key1]);
+            break;
+        case "POT":
+            handler = new PotHandler(data[key1]);
+            break;
+        case "TURN_REQUEST":
+            handler = new TurnRequestHandler(data[key1]);
+            break;
         case "PRE_START":
             handler = new PreStartHandler(data[key1]);
             break;
@@ -29,8 +41,6 @@ ws.onmessage = function (event) {
             break;
         case "POCKET_CARDS":
             handler = new PocketCardsHandler(data[key1]);
-            break;
-        case "TURN":
             break;
         default:
             handler = new LogsHandler("Unknown state");
@@ -100,7 +110,6 @@ function CreatePlayer(player) {
     info_div.style.display = "flex";
     info_div.style.flexDirection = "column"; // Name and balance stack vertically
 
-
     let player_name = document.createElement("p");
     if (id === client_id){
         player_name.textContent = "Player " + name + " (You): ";
@@ -108,6 +117,7 @@ function CreatePlayer(player) {
     else{
         player_name.textContent = "Player " + name + ": ";
     }
+    player_name.id = id + "_name";
     player_name.className = "row";
     info_div.appendChild(player_name);
 
@@ -155,6 +165,9 @@ class PreStartHandler extends AbsGamePhaseHandler{
 
         let ready_button = document.getElementById("ready_button");
         ready_button.style.display = "none";
+
+        let logs = new LogsHandler("Pre-flop🎴");
+        logs.handle();
     }
 }
 
@@ -185,7 +198,7 @@ class PreFlopBBHandler extends AbsGamePhaseHandler{
         let balance = document.getElementById(player["id"] + "_balance");
         balance.textContent = "Balance: $" + player["balance"];
 
-        let logs = new LogsHandler(player["name"] + ": big blind: $" + sb_amount);
+        let logs = new LogsHandler(player["name"] + ": big blind: $" + bb_amount);
         logs.handle();
     }
 }
@@ -202,8 +215,85 @@ class PocketCardsHandler extends AbsGamePhaseHandler{
     }
 }
 
-class TurnHandler extends AbsGamePhaseHandler{
+class TurnRequestHandler extends AbsGamePhaseHandler{
     handle() {
+        let data = this.args;
+        let options = data["options"];
+        let bet = data["bet"];
 
+        if(options.includes("CALL")){
+            let call_button = document.getElementById("call_button");
+            call_button.textContent = "Call $" + bet;
+        }
+
+        options.forEach(option => {
+            let option_str = option.toString().toLowerCase();
+            let button = document.getElementById(option_str + "_button");
+            button.style.display = "flex";
+            button.onclick = () => {
+                sendTurn(option, bet);
+            }
+        })
+    }
+}
+
+class TurnResultHandler extends AbsGamePhaseHandler{
+    handle() {
+        let data = this.args;
+        let player = data["player"];
+        let choice = data["choice"];
+        let amount = data["amount"];
+
+        let player_balance = document.getElementById(player["id"] + "_balance");
+        player_balance.textContent = "Balance: $" + player["balance"];
+
+        let msg_end = ""
+        switch (choice) {
+            case "CALL":
+                msg_end = " called $" + amount;
+                break;
+            case "CHECK":
+                msg_end = " checked";
+                break;
+            case "RAISE":
+                msg_end = " raised $" + amount;
+                break;
+            case "FOLD":
+                msg_end = " folded";
+                break;
+            default:
+                msg_end = " unknown choice"
+                break;
+        }
+
+        let logs = new LogsHandler(player["name"] + msg_end)
+        logs.handle();
+    }
+}
+
+class PotHandler extends AbsGamePhaseHandler{
+    handle() {
+        let data = this.args;
+        let pot = data["pot"]
+
+        let pot_element = document.getElementById("pot")
+        pot_element.textContent = '$' + pot
+    }
+}
+
+class TurnHighlightHandler extends AbsGamePhaseHandler{
+    handle() {
+        let data = this.args;
+        let prev_player = data["prev_player"];
+        let curr_player = data["curr_player"];
+
+        let prev_player_name = document.getElementById(prev_player["id"] + "_name");
+        prev_player_name.style.color = "black";
+
+        if (curr_player === null)
+            return;
+
+        let curr_player_name = document.getElementById(curr_player["id"] + "_name");
+        curr_player_name.style.color = "green";
     }
 }

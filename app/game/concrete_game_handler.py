@@ -16,5 +16,6 @@ class ConcreteGameHandler(AbsGameHandler):
     async def send_personal(self, game_phase: GamePhase, player_id: int, abs_game_phase_args: AbsGamePhaseArgs)->None:
         await self.connection_manager.send_personal(player_id, {game_phase.value: abs_game_phase_args.dict()})
 
-    async def turn(self, player: Player, turn_options: List[PlayerChoice], amount)->TurnResult:
-        await self.connection_manager.send_personal(player.id, {"TURN_OPTIONS": turn_options, "AMOUNT": amount})
+    async def turn(self, player: Player, turn_options: List[PlayerChoice], amount: float)->TurnResponse:
+        """Requests a turn action from the player and waits for their response."""
+        return await self.connection_manager.request_turn(player.id, turn_options, amount)

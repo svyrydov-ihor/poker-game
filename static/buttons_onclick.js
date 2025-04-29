@@ -19,3 +19,15 @@ async function readyButtonClick(button) {
         });
     }
 }
+
+function sendTurn(choice, amount=0) {
+    ws.send(JSON.stringify({
+        "TURN_RESPONSE": {"choice": choice, "amount": amount}
+    }))
+
+    let buttons = document.getElementById("self_buttons");
+    console.log(buttons);
+    Array.from(buttons.children).forEach(button => {
+        button.style.display = "none";
+    })
+}

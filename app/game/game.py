@@ -19,7 +19,7 @@ class AbsGameHandler(ABC):
     async def send_personal(self, game_phase: GamePhase, player_id: int, abs_game_phase_args: AbsGamePhaseArgs)->None:
         pass
     @abstractmethod
-    async def turn(self, player: Player, turn_options: List[PlayerChoice], amount)->TurnResult:
+    async def turn(self, player: Player, turn_options: List[PlayerChoice], amount)->TurnResponse:
         pass
 
 class Game:
@@ -28,12 +28,13 @@ class Game:
         self.game_handler = game_handler
         self.curr_dealer_pos: int = -1
         self.prev_dealer_pos: int = 0
-        self.curr_player_pos: int = 0
         self.pot: float = 0
         self.sb_amount = sb_amount
         self.bb_amount = bb_amount
         self.players: List[Player] = table.players
         self.folded: List[Player] = []
+        self.sb_pos = -1
+        self.bb_pos = -1
         self.is_game_started = False
 
     async def start_game(self):
@@ -56,27 +57,64 @@ class Game:
                 pocket_cards=player.get_poket_cards_dict()))
 
         #small blind
-        self.curr_player_pos = (self.curr_dealer_pos + 1) % len(self.players)
-        self.players[self.curr_player_pos].balance -= self.sb_amount
+        self.sb_pos = (self.curr_dealer_pos + 1) % len(self.players)
+        self.players[self.sb_pos].balance -= self.sb_amount
         self.pot += self.sb_amount
         await self.game_handler.broadcast(GamePhase.PRE_FLOP_SB, PreFlopSBArgs(
             sb_amount=self.sb_amount,
-            player=self.players[self.curr_player_pos]))
+            player=self.players[self.sb_pos]))
+        await self.game_handler.broadcast(GamePhase.POT, PotArgs(pot=self.pot))
 
         #big blind
-        self.curr_player_pos = (self.curr_player_pos + 1) % len(self.players)
-        self.players[self.curr_player_pos].balance -= self.bb_amount
+        self.bb_pos = (self.sb_pos + 1) % len(self.players)
+        self.players[self.bb_pos].balance -= self.bb_amount
         self.pot += self.bb_amount
         await self.game_handler.broadcast(GamePhase.PRE_FLOP_BB, PreFlopBBArgs(
             bb_amount=self.bb_amount,
-            player=self.players[self.curr_player_pos]))
+            player=self.players[self.bb_pos]))
+        await self.game_handler.broadcast(GamePhase.POT, PotArgs(pot=self.pot))
 
     async def pre_flop_betting(self):
-        self.curr_player_pos = (self.curr_player_pos + 1) % len(self.players)
-        next_dealer_pos = (self.curr_dealer_pos + 1) % len(self.players)
+        curr_player_pos = (self.bb_pos + 1) % len(self.players)
+        prev_player_pos = self.bb_pos
+        bb_next_pos = (self.bb_pos + 1) % len(self.players)
         bet = self.bb_amount
 
         turn_options = [PlayerChoice.CALL, PlayerChoice.FOLD, PlayerChoice.RAISE]
-        while self.curr_player_pos != next_dealer_pos:
-            p_choice = await self.game_handler.turn(self.players[self.curr_player_pos],
+
+        while True:
+            if curr_player_pos == self.sb_pos:
+                bet = self.sb_amount
+            elif curr_player_pos == self.bb_pos:
+                turn_options = [PlayerChoice.CHECK, PlayerChoice.FOLD, PlayerChoice.RAISE]
+
+            await self.game_handler.broadcast(GamePhase.TURN_HIGHLIGHT, TurnHighlightArgs(
+                prev_player=self.players[prev_player_pos],
+                curr_player=self.players[curr_player_pos]
+            ))
+            p_choice = await self.game_handler.turn(self.players[curr_player_pos],
                                                     turn_options, bet)
+
+            match p_choice.choice:
+                case PlayerChoice.CALL:
+                    self.players[curr_player_pos].balance -= bet
+                    self.pot += bet
+                case PlayerChoice.CHECK:
+                    pass
+                case PlayerChoice.FOLD:
+                    self.folded.append(self.players[curr_player_pos])
+            await self.game_handler.broadcast(GamePhase.TURN_RESULT, TurnResultArgs(
+                player = self.players[curr_player_pos],
+                choice = p_choice.choice,
+                amount = p_choice.amount,
+            ))
+            await self.game_handler.broadcast(GamePhase.POT, PotArgs(pot=self.pot))
+
+            prev_player_pos = curr_player_pos
+            curr_player_pos = (curr_player_pos + 1) % len(self.players)
+
+            if curr_player_pos == bb_next_pos:
+                break
+        await self.game_handler.broadcast(GamePhase.TURN_HIGHLIGHT, TurnHighlightArgs(
+            prev_player=self.players[prev_player_pos]
+        ))
