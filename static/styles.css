@@ -1,40 +1,448 @@
-.row{
-    margin-right: 10px;
+/* static/styles.css */
+
+/* --- Add or Modify these styles --- */
+
+/* Community Cards Styles */
+#community_cards {
+   position: absolute;
+   top: 50%; /* Center vertically */
+   left: 50%; /* Center horizontally */
+   transform: translate(-50%, -50%); /* Fine-tune centering */
+   display: none; /* Hide by default */
+   gap: 5px;
+   border: 1px dashed #ffffff;
+   padding: 8px;
+   min-height: 40px;
+   min-width: 150px;
+   align-items: center;
+   justify-content: center;
+   background-color: rgba(0, 0, 0, 0.1);
+   border-radius: 5px;
+   z-index: 5;
+   color: white;
 }
 
-.player_button{
-    margin-right: 10px;
+#poker_table_container.game-started #community_cards {
+    display: flex; /* Show when game starts */
 }
 
-.buttons_div{
+/* Pot Display Styles */
+#pot_display {
+    position: absolute;
+    /* Position it slightly above the vertical center (where community cards are) */
+    top: calc(50% - 55px); /* Adjust the 45px offset as needed */
+    left: 50%;
+    transform: translateX(-50%); /* Center horizontally */
+    color: white;
+    background-color: rgba(0, 0, 0, 0.4);
+    padding: 5px 10px;
+    border-radius: 10px;
+    font-size: 14px;
+    z-index: 6; /* Ensure it's above community cards */
+    display: none; /* Hide by default */
+}
+
+#poker_table_container.game-started #pot_display {
+    display: inline-block; /* Show when game starts */
+}
+
+#pot {
+    font-weight: bold;
+    font-size: 16px;
+    margin-left: 5px;
+}
+
+
+/* --- Keep all other existing styles from the previous complete CSS --- */
+/* Make sure styles for .main_container, .game_area, .logs_area, */
+/* #poker_table_container, #players, .player_div_default, etc. are still present */
+
+/* Example of keeping existing styles: */
+body {
+    font-family: sans-serif;
+    margin: 10px;
+    background-color: #f8f9fa;
+    color: #212529;
+}
+
+.main_container {
+    display: flex;
+    width: 100%;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.game_area {
+    flex: 3;
+    min-width: 550px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+.logs_area {
+    flex: 1;
+    min-width: 250px;
+    border-left: 1px solid #dee2e6;
+    padding-left: 15px;
+    height: 90vh;
+    overflow-y: auto;
+    background-color: #ffffff;
+    border-radius: 5px;
+    padding: 15px;
+    box-sizing: border-box;
+}
+
+#game_logs {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+#game_logs li {
+    margin-bottom: 8px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #e9ecef;
+    word-wrap: break-word;
+    font-size: 14px;
+}
+#game_logs li:last-child {
+    border-bottom: none;
+}
+
+#poker_table_container {
+    position: relative;
+    width: 550px;
+    height: 450px;
+    margin: 20px auto;
+    border: 10px solid #a6896f;
+    background-color: #6fac6f;
+    border-radius: 50%;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.community_card {
+    background-color: white;
+    color: black;
+    padding: 5px;
+    border: 1px solid black;
+    border-radius: 3px;
+    min-width: 25px;
+    text-align: center;
+}
+
+#players {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px;
+    margin-bottom: 20px;
+    width: 90%;
+    max-width: 450px;
+}
+
+.player_div_default {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #adb5bd;
+    padding: 8px 12px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    width: 100%;
+    box-sizing: border-box;
+    color: #343a40;
+    transition: background-color 0.3s ease;
+}
+
+.player_info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+}
+
+.player_name {
+    font-weight: bold;
+    margin: 0 0 3px 0;
+    font-size: 15px;
+    color: inherit;
+}
+
+.player_balance {
+    font-size: 13px;
+    margin: 0;
+    color: #495057;
+}
+
+.player_state {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.player_status_container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 1.5em;
+}
+
+.player_cards_container {
+    display: flex;
+    justify-content: flex-end;
+    gap: 5px;
+    width: 100%;
+    min-height: 1.5em;
+}
+
+.dealer_chip, .turn_status, .player_card {
+    font-size: 13px;
+    font-weight: normal;
+    color: inherit;
+    display: inline-block;
+    min-width: 1em;
+    text-align: center;
+    padding: 2px 4px;
+    border-radius: 3px;
+    background-color: #ced4da;
+}
+
+.dealer_chip {
+    font-weight: bold;
+    color: #ffffff;
+    background-color: #ffc107;
+}
+
+.turn_status {
+    font-style: italic;
+}
+.turn_status.ready {
+    color: green;
+    font-style: normal;
+    font-weight: bold;
+    background-color: transparent;
+}
+.turn_status.not-ready {
+    color: red;
+    font-style: normal;
+    font-weight: bold;
+    background-color: transparent;
+}
+
+.player_card {
+    background-color: white;
+    border: 1px solid #adb5bd;
+    color: black;
+    min-width: 25px;
+    padding: 4px 6px;
+    display: none; /* Initially hide card elements - JS will show them */
+}
+
+#poker_table_container.game-started #players {
+    display: block;
+    border: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    min-height: initial;
+}
+
+#poker_table_container.game-started .player_div_default {
+    position: absolute;
+    width: 110px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid #6c757d;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 8px;
+    box-sizing: border-box;
+    justify-content: flex-start;
+    transition: top 0.5s ease, left 0.5s ease, background-color 0.3s ease;
+    z-index: 10;
+}
+
+#poker_table_container.game-started .player_div_default.highlight-turn {
+    background-color: #d1e7dd;
+    border-color: #87cdac;
+    box-shadow: 0 0 10px rgba(99, 158, 132, 0.5);
+}
+
+#poker_table_container.game-started .player_info {
+    align-items: center;
+    text-align: center;
+    width: 100%;
+}
+
+#poker_table_container.game-started .player_state {
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    gap: 3px;
+}
+
+#poker_table_container.game-started .player_status_container {
+     justify-content: center;
+     gap: 5px;
+}
+
+#poker_table_container.game-started .player_cards_container {
+    justify-content: center;
+    gap: 3px;
+    width: 100%;
+}
+
+#poker_table_container.game-started .dealer_chip,
+#poker_table_container.game-started .turn_status,
+#poker_table_container.game-started .player_card {
+    font-size: 11px;
+    margin: 1px;
+    padding: 2px 3px;
+}
+
+#poker_table_container.game-started .player_name {
+     font-size: 12px;
+}
+
+#poker_table_container.game-started .player_card {
+    min-width: 20px;
+}
+
+#self_buttons {
     display: flex;
     flex-wrap: wrap;
-    gap: 3px;
-    justify-content: left;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+    width: 100%;
+    max-width: 550px;
+    padding: 10px;
+    box-sizing: border-box;
 }
 
-/*
-html, body {
-    background-color: black;
-    color: white;
+#self_buttons button {
+    padding: 10px 15px;
+    font-size: 14px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    color: white; /* Default white text */
+    transition: background-color 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: none; /* Hide all buttons by default - JS will show them */
+}
+
+/* Class-based styles for Ready Button Background */
+#ready_button.not-ready {
+    background-color: #dc3545; /* Red background */
+}
+#ready_button.not-ready:hover {
+    background-color: #bb2d3b; /* Darker red on hover */
+}
+
+#ready_button.ready {
+    background-color: #198754; /* Green background */
+}
+#ready_button.ready:hover {
+    background-color: #157347; /* Darker green on hover */
+}
+
+#fold_button {
+    background-color: #6c757d; /* Grey */
+}
+#fold_button:hover {
+    background-color: #5c636a;
+}
+
+#raise_button {
+    background-color: #ffc107; /* Yellow */
+    color: #000; /* Black text for yellow button */
+}
+#raise_button:hover {
+    background-color: #ffca2c;
+}
+
+#call_button, #check_button { /* Assuming these use the default blue */
+    background-color: #0d6efd;
+}
+#call_button:hover, #check_button:hover {
+    background-color: #0b5ed7;
 }
 
 
-a {
-    color: lightblue;
+#raise_slider_container {
+    margin-top: 10px;
+    display: none; /* Hide slider by default - JS shows it */
+    flex-direction: column;
+    align-items: center;
+    width: 80%;
+    max-width: 300px;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+#slider_value_label {
+    font-size: 14px;
+    margin-bottom: 10px;
+    font-weight: bold;
+    color: #343a40;
+}
+
+#raise_slider {
+    width: 100%;
+    cursor: pointer;
+    height: 8px;
+    background: #dee2e6;
+    border-radius: 5px;
+    outline: none;
+    opacity: 0.7;
+    transition: opacity .2s;
+}
+#raise_slider:hover {
+    opacity: 1;
+}
+#raise_slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: #0d6efd;
+  border-radius: 50%;
+  cursor: pointer;
+}
+#raise_slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: #0d6efd;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
 }
 
 
-button {
-    background-color: #333;
-    color: white;
-    border: 1px solid white;
+#raise_slider_container button {
+    margin-top: 15px;
+    background-color: #198754; /* Green */
+    display: block;
+    width: 100px;
+    color: white; /* Ensure text is white */
+}
+#raise_slider_container button:hover {
+    background-color: #157347;
 }
 
-
-input, textarea {
-    background-color: #333;
-    color: white;
-    border: 1px solid white;
+.hidden {
+    display: none !important;
 }
-*/

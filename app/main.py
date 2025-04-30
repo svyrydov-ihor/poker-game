@@ -12,7 +12,7 @@ from starlette.websockets import WebSocketDisconnect
 from app.game.concrete_game_handler import ConcreteGameHandler
 from app.game.connection_manager import ConnectionManager
 from app.game.game import Game
-from app.game.game_phases import GamePhase, NewPlayerArgs, TurnResponse, PlayerChoice
+from app.game.game_phases import GamePhase, NewPlayerArgs, TurnResponse, PlayerChoice, IsReadyArgs
 from app.game.models import Player
 from app.game.table import Table
 
@@ -38,16 +38,21 @@ table = Table()
 
 @app.post("/player-ready/{client_id}")
 async def player_ready(client_id: int, is_player_ready: IsPlayerReady):
+    is_ready = is_player_ready.is_player_ready
     try:
         for p in table.players:
             if p.id == client_id:
-                p.is_ready = is_player_ready.is_player_ready
+                p.is_ready = is_ready
         log_text = ""
-        if is_player_ready.is_player_ready:
+        if is_ready:
             log_text = f"Player {client_id} is ready ✅"
         else:
             log_text = f"Player {client_id} is not ready ❌"
         await connection_manager.log(log_text)
+        await connection_manager.broadcast({GamePhase.IS_READY.value: IsReadyArgs(
+            player_id=client_id,
+            is_ready=is_ready
+        ).dict()})
 
         if all(p.is_ready == True for p in table.players):
              asyncio.create_task(start_game())
@@ -84,7 +89,6 @@ async def websocket_endpoint(websocket: WebSocket, client_id: int):
 
     #load existing players for new connection
     for existing_player in table.players:
-        logger.debug(f"Sending player {existing_player.id} to {client_id}")
         await connection_manager.send_personal(client_id,
                {GamePhase.NEW_PLAYER.value: NewPlayerArgs(
                    player=existing_player).dict()})
@@ -122,7 +126,6 @@ async def websocket_endpoint(websocket: WebSocket, client_id: int):
             else:
                 logger.warning(f"Received unknown message format from client {client_id}: {data}")
 
-
     except WebSocketDisconnect:
         logger.info(f"Player {client_id} disconnected.")
         connection_manager.disconnect(client_id)
@@ -130,7 +133,6 @@ async def websocket_endpoint(websocket: WebSocket, client_id: int):
         await connection_manager.log(f"Player {client_name} left")
     except Exception as e:
         logger.exception(f"Error in websocket connection with client {client_id}:" + e)
-
 
 '''
 if __name__ == "__main__":

@@ -30,6 +30,9 @@ ws.onmessage = function (event) {
         case "TURN_REQUEST":
             handler = new TurnRequestHandler(data[key1]);
             break;
+        case "IS_READY":
+            handler = new IsReadyHandler(data[key1]);
+            break;
         case "PRE_START":
             handler = new PreStartHandler(data[key1]);
             break;
@@ -71,28 +74,21 @@ class LogsHandler extends AbsGamePhaseHandler{
 
 class NewPlayerHandler extends AbsGamePhaseHandler{
     handle(){
-        console.log("args:", this.args);
         let player = this.args;
         let player_div = CreatePlayer(player);
-        let players = document.getElementById("players");
-
-        if (players.children.length > 0){
-            players.insertBefore(player_div, players.lastElementChild);
-        }
-        else{
-            players.appendChild(player_div);
-        }
+        let playersContainer = document.getElementById("players"); // Target the correct container
+        playersContainer.appendChild(player_div);
     }
 }
 
 class NewSelfHandler extends AbsGamePhaseHandler{
     handle(){
-        console.log("args self:", this.args);
         let player = this.args;
-        let player_div = CreatePlayer(player)
-        let players = document.getElementById("players");
-        players.appendChild(player_div);
+        let player_div = CreatePlayer(player);
+        let playersContainer = document.getElementById("players"); // Target the correct container
+        playersContainer.appendChild(player_div);
 
+        // Show ready button (This logic remains the same)
         document.getElementById("ready_button").style.display = "flex";
     }
 }
@@ -103,69 +99,211 @@ function CreatePlayer(player) {
     let balance = player["balance"];
 
     let player_div = document.createElement("div");
-    player_div.style.display = "flex";
     player_div.id = id + "_div";
+    player_div.classList.add("player_div_default"); // Add class for default styling
 
+    // Container for player info (Name, Balance)
     let info_div = document.createElement("div");
-    info_div.style.display = "flex";
-    info_div.style.flexDirection = "column"; // Name and balance stack vertically
+    info_div.className = "player_info"; // Use class for styling
 
     let player_name = document.createElement("p");
-    if (id === client_id){
-        player_name.textContent = "Player " + name + " (You): ";
-    }
-    else{
-        player_name.textContent = "Player " + name + ": ";
-    }
     player_name.id = id + "_name";
-    player_name.className = "row";
+    player_name.className = "player_name"; // Use class for styling
+    // *** FIX: Use backticks (`) for template literal evaluation ***
+    player_name.textContent = `Player ${name}${id === client_id ? ' (You)' : ''}`;
     info_div.appendChild(player_name);
 
-    // Create player balance element
     let player_balance = document.createElement("p");
-    player_balance.textContent = "Balance: $" + balance; // Add balance text
     player_balance.id = id + "_balance";
-    player_balance.style.fontWeight = "normal";
-    player_balance.style.fontSize = "15px";
-    player_balance.style.margin = "-15px 0 10px 0";
-    info_div.appendChild(player_balance); // Add balance to info_div
+    player_balance.className = "player_balance"; // Use class for styling
+    player_balance.textContent = `Balance: $${balance}`;
+    info_div.appendChild(player_balance);
 
-    // Append info_div to player_div
-    player_div.appendChild(info_div);
+    player_div.appendChild(info_div); // Add info container
 
-    let dealer_chip = document.createElement("p");
+    // Container for game state elements (Dealer, Turn status/Cards)
+    let state_div = document.createElement("div");
+    state_div.className = "player_state"; // Use class for styling
+
+    // --- Dealer Chip and Turn Status ---
+    let status_container = document.createElement("div"); // Container for top row (Dealer, Turn)
+    status_container.className = "player_status_container";
+
+    let dealer_chip = document.createElement("span"); // Use span for inline display
     dealer_chip.textContent = "(D)";
-    dealer_chip.className = "row";
-    dealer_chip.style.display = "none";
+    dealer_chip.className = "dealer_chip"; // Use class for styling
     dealer_chip.id = id + "_dealer";
-    player_div.appendChild(dealer_chip);
+    dealer_chip.style.display = "none"; // Initially hidden
+    status_container.appendChild(dealer_chip);
 
-    ["_turn", "_card_0", "_card_1"].forEach(suffix => {
-        let element = document.createElement("p");
-        element.textContent = "";
-        element.className = "row";
-        element.id = id + suffix;
-        element.style.fontWeight = "normal"
-        player_div.appendChild(element);
-    })
+    let turn_status = document.createElement("span"); // Use span
+    turn_status.id = id + "_turn";
+    turn_status.className = "turn_status"; // Use class for styling
+    status_container.appendChild(turn_status);
+
+    state_div.appendChild(status_container); // Add status container to state div
+
+    // --- Pocket Cards Container ---
+    let cards_container = document.createElement("div");
+    cards_container.className = "player_cards_container"; // New class for card row
+
+    let card_0 = document.createElement("span"); // Use span
+    card_0.id = id + "_card_0";
+    card_0.className = "player_card"; // Use class for styling
+    cards_container.appendChild(card_0); // Add card to cards container
+
+    let card_1 = document.createElement("span"); // Use span
+    card_1.id = id + "_card_1";
+    card_1.className = "player_card"; // Use class for styling
+    cards_container.appendChild(card_1); // Add card to cards container
+
+    state_div.appendChild(cards_container); // Add cards container to state div
+
+    player_div.appendChild(state_div); // Add state container
 
     return player_div;
 }
 
-class PreStartHandler extends AbsGamePhaseHandler{
-    handle(){
+class IsReadyHandler extends AbsGamePhaseHandler{
+    handle() {
         let data = this.args;
-        let prev_dealer = data["prev_dealer"]["id"]
-        let curr_dealer = data["curr_dealer"]["id"]
+        let player_id = data["player_id"];
+        let is_ready = data["is_ready"];
 
-        let prev_dealer_div = document.getElementById(prev_dealer + "_dealer");
-        prev_dealer_div.style.display = "none";
-        let curr_dealer_div = document.getElementById(curr_dealer + "_dealer");
-        curr_dealer_div.style.display = "flex";
+        let player_turn = document.getElementById(player_id + "_turn");
+        if (is_ready) {
+            player_turn.textContent = "✅";
+        } else{
+            player_turn.textContent = "❌";
+        }
+    }
+}
 
+function arrangePlayersInCircle(orderedPlayerIds) {
+    const playersContainer = document.getElementById('players');
+    const tableContainer = document.getElementById('poker_table_container');
+    const playerDivs = Array.from(playersContainer.children).filter(el => el.id.endsWith('_div')); // Get only player divs
+
+    // Clear existing absolute positioning before recalculating
+    playerDivs.forEach(div => {
+        div.style.position = 'absolute'; // Ensure it's absolute
+        div.style.top = '';
+        div.style.left = '';
+        div.style.transform = ''; // Reset transform
+    });
+
+    const numPlayers = orderedPlayerIds.length;
+    if (numPlayers === 0) return;
+
+    const radiusX = tableContainer.offsetWidth / 2 - 60; // Horizontal radius (adjust 60 based on player div width)
+    const radiusY = tableContainer.offsetHeight / 2 - 40; // Vertical radius (adjust 40 based on player div height)
+    const centerX = tableContainer.offsetWidth / 2;
+    const centerY = tableContainer.offsetHeight / 2;
+
+    // Find the index of the current user in the ordered list
+    let userIndex = orderedPlayerIds.findIndex(id => id === client_id);
+    if (userIndex === -1) {
+        console.error("Current user not found in ordered list!");
+        // Fallback or default arrangement if user not found?
+        // For now, let's just proceed, user might be spectator or issue exists
+        userIndex = 0; // Default to first player if issue
+    }
+
+    // Calculate the angle step
+    const angleStep = (2 * Math.PI) / numPlayers;
+
+    // Calculate the angle offset needed to place the user at the bottom (approx 90 degrees or PI/2 radians)
+    // The starting angle (angle = 0) is typically the rightmost point (3 o'clock).
+    // We want the userIndex to be at 90 degrees (PI/2).
+    const userTargetAngle = Math.PI / 2;
+    const userCurrentAngle = userIndex * angleStep;
+    const angleOffset = userTargetAngle - userCurrentAngle;
+
+    orderedPlayerIds.forEach((playerId, index) => {
+        const playerDiv = document.getElementById(`${playerId}_div`);
+        if (!playerDiv) {
+            console.warn(`Player div not found for ID: ${playerId}`);
+            return; // Skip if div doesn't exist
+        }
+
+        // --- >>> Ensure position is absolute <<< ---
+        playerDiv.style.position = 'absolute';
+        // --- >>> Ensure it overrides default styles <<< ---
+        playerDiv.classList.remove("player_div_default"); // Optional: remove default class if styles conflict
+        playerDiv.style.width = '100px'; // Re-apply width for circle if needed
+        playerDiv.style.justifyContent = ''; // Reset justify-content if needed
+
+        // ... (calculate angle, x, y) ...
+        const angle = (index * angleStep) + angleOffset;
+        const x = centerX + radiusX * Math.cos(angle) - (playerDiv.offsetWidth / 2);
+        const y = centerY + radiusY * Math.sin(angle) - (playerDiv.offsetHeight / 2);
+
+
+        // Apply the position
+        playerDiv.style.left = `${x}px`;
+        playerDiv.style.top = `${y}px`;
+
+        // Optional: Rotate player divs to face the center (can look cluttered)
+        // const rotation = angle * (180 / Math.PI) + 90; // Adjust rotation angle
+        // playerDiv.style.transform = `rotate(${rotation}deg)`;
+
+        console.log(`Positioned player <span class="math-inline">\{playerId\} at \(</span>{x.toFixed(1)}, ${y.toFixed(1)}) angle ${ (angle * 180/Math.PI).toFixed(1)}deg`);
+    });
+
+     // --- Position Buttons Below User ---
+     // This part might need refinement based on your exact layout.
+     // It assumes the user's div is now positioned correctly.
+     const selfButtons = document.getElementById('self_buttons');
+     const userDiv = document.getElementById(`${client_id}_div`);
+     if (userDiv && selfButtons) {
+        // Option 1: Place buttons relative to the table container, fixed bottom
+         selfButtons.style.position = 'absolute'; // Or relative if table container allows overflow
+         selfButtons.style.bottom = '-50px'; // Adjust as needed, below the container
+         selfButtons.style.left = '50%';
+         selfButtons.style.transform = 'translateX(-50%)';
+         selfButtons.style.zIndex = '10'; // Ensure buttons are clickable
+
+        // Option 2: Dynamically position below the userDiv (more complex if table size changes)
+        // selfButtons.style.position = 'absolute';
+        // selfButtons.style.top = `${userDiv.offsetTop + userDiv.offsetHeight + 10}px`; // 10px gap
+        // selfButtons.style.left = `${userDiv.offsetLeft + (userDiv.offsetWidth / 2) - (selfButtons.offsetWidth / 2)}px`; // Center below user
+     }
+
+}
+
+class PreStartHandler extends AbsGamePhaseHandler{
+    handle() {
+        let data = this.args;
+        let prev_dealer = data["prev_dealer"]["id"];
+        let curr_dealer = data["curr_dealer"]["id"];
+        let orderedPlayerIds = data["ordered_player_ids"]; // Get the ordered list
+
+        // Add class to the container to trigger CSS change
+        const tableContainer = document.getElementById('poker_table_container');
+        tableContainer.classList.add('game-started'); // <<<<<< ADD THIS LINE
+
+        // Hide/show dealer chips (existing logic)
+        let prev_dealer_chip = document.getElementById(prev_dealer + "_dealer");
+        if (prev_dealer_chip) prev_dealer_chip.style.display = "none";
+        let curr_dealer_chip = document.getElementById(curr_dealer + "_dealer");
+        if (curr_dealer_chip) curr_dealer_chip.style.display = "inline-block"; // Or "flex" if it's a block
+
+        // Clear any lingering "ready" status from player divs
+        orderedPlayerIds.forEach(id => {
+             const turnStatus = document.getElementById(id + "_turn");
+             if (turnStatus && (turnStatus.textContent === '✅' || turnStatus.textContent === '❌')) {
+                 turnStatus.textContent = ''; // Clear ready checkmark
+             }
+        });
+
+        // Hide ready button (existing logic)
         let ready_button = document.getElementById("ready_button");
         ready_button.style.display = "none";
 
+        // Call the arrangement function (ensure it sets absolute position)
+        arrangePlayersInCircle(orderedPlayerIds); // This function should ensure style.position = 'absolute'
+
+        // Log game start (existing logic)
         let logs = new LogsHandler("Pre-flop🎴");
         logs.handle();
     }
@@ -208,10 +346,25 @@ class PocketCardsHandler extends AbsGamePhaseHandler{
         let data = this.args;
         let cards = data["pocket_cards"];
 
-        for (let i = 0; i < 2; i++) {
-            let card_text = document.getElementById(client_id + "_card_" + i);
-            card_text.textContent = cards[i]["suit"] + cards[i]["rank"];
+        // Update the text content of the card elements
+        for (let i = 0; i < cards.length && i < 2; i++) { // Iterate through received cards (max 2)
+            let cardElement = document.getElementById(client_id + "_card_" + i);
+            if (cardElement) {
+                 // Set text content (e.g., "♥️A", "♠️K")
+                 // You might want different styling for suit and rank later
+                 cardElement.textContent = cards[i]["suit"] + cards[i]["rank"];
+                 // Make the card element visible if it wasn't
+                 cardElement.style.display = 'inline-block';
+            }
         }
+         // Optional: Hide card elements if fewer than 2 cards are dealt (e.g., game reset)
+         for (let i = cards.length; i < 2; i++) {
+             let cardElement = document.getElementById(client_id + "_card_" + i);
+             if (cardElement) {
+                 cardElement.textContent = ''; // Clear text
+                 cardElement.style.display = 'none'; // Hide unused card slots
+             }
+         }
     }
 }
 
@@ -219,22 +372,104 @@ class TurnRequestHandler extends AbsGamePhaseHandler{
     handle() {
         let data = this.args;
         let options = data["options"];
-        let bet = data["bet"];
+        let bet = parseInt(data["bet"]); // Ensure `bet` is treated as an integer
 
-        if(options.includes("CALL")){
+        console.log(options);
+
+        if (options.includes("CALL")) {
             let call_button = document.getElementById("call_button");
             call_button.textContent = "Call $" + bet;
+            call_button.style.display = "flex";
         }
 
         options.forEach(option => {
             let option_str = option.toString().toLowerCase();
             let button = document.getElementById(option_str + "_button");
-            button.style.display = "flex";
-            button.onclick = () => {
-                sendTurn(option, bet);
+
+            if (button) {
+                button.style.display = "flex";
+                button.onclick = () => {
+                    if (option_str === "raise") {
+                        this.showRaiseSlider(bet);
+                    } else {
+                        sendTurn(option, 0); // Handle other options like Call, Fold, Check
+                    }
+                };
             }
-        })
+        });
+
     }
+    /**
+     * Show a slider for setting the raise amount and a submit button.
+     * @param {number} bet - Minimum bet amount.
+     */
+    showRaiseSlider(bet) {
+        let min_raise = 2
+        bet += min_raise;
+        // Get player's balance from their balance element
+        let player_balance_element = document.getElementById(`${client_id}_balance`);
+        let player_balance = parseInt(player_balance_element.textContent.replace("Balance: $", "")); // Parse the balance as an integer
+
+        // Ensure player_balance is valid
+        if (isNaN(player_balance)) {
+            console.error("Error: Unable to determine player's balance.");
+            return;
+        }
+
+        // Remove any existing slider container to prevent duplication
+        let existing_slider = document.getElementById("raise_slider_container");
+        if (existing_slider) existing_slider.remove();
+
+        // Create a container for the slider and submit button
+        let slider_container = document.createElement("div");
+        slider_container.id = "raise_slider_container";
+        slider_container.style.display = "flex";
+        slider_container.style.flexDirection = "column";
+        slider_container.style.marginTop = "10px";
+
+        // Create the slider input
+        let slider = document.createElement("input");
+        slider.type = "range";
+        slider.min = bet.toString(); // Minimum value is the `bet`
+        slider.max = player_balance.toString(); // Maximum value is player's balance
+        slider.value = bet.toString(); // Default starting value is the `bet`
+        slider.id = "raise_slider";
+
+        // Create a label to display the current slider value
+        let slider_label = document.createElement("p");
+        slider_label.id = "slider_value_label";
+        slider_label.textContent = `Raise Amount: $${slider.value}`; // Display initial slider value
+
+        slider.oninput = function () {
+            slider_label.textContent = `Raise Amount: $${slider.value}`; // Update label when slider value changes
+        };
+
+        // Create the "Submit Bet" button
+        let submit_button = document.createElement("button");
+        submit_button.textContent = "Submit Bet";
+        submit_button.style.marginTop = "10px";
+
+        // Define the behavior for the submit button
+        submit_button.onclick = () => {
+            let raise_amount = parseInt(slider.value); // Get the slider value as an integer
+            if (raise_amount >= bet && raise_amount <= player_balance) {
+                sendTurn("RAISE", raise_amount); // Send the raise amount
+                slider_container.remove(); // Remove the slider UI after submission
+            } else {
+                console.error("Invalid raise amount.");
+            }
+        };
+
+        // Append elements to the container
+        slider_container.appendChild(slider_label);
+        slider_container.appendChild(slider);
+        slider_container.appendChild(submit_button);
+
+        // Add the slider container to the DOM, below the buttons
+        let buttons_div = document.getElementById("self_buttons");
+        buttons_div.appendChild(slider_container);
+    }
+
 }
 
 class TurnResultHandler extends AbsGamePhaseHandler{

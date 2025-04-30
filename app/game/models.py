@@ -5,6 +5,7 @@ class Player:
         self.id = id
         self.name = name
         self.balance = balance
+        self.bet = 0
         self.pocket_cards: List[Card] = []
         self.is_ready = False
 
@@ -19,6 +20,7 @@ class Player:
             "id": self.id,
             "name": self.name,
             "balance": self.balance,
+            "bet": self.bet,
             "is_ready": self.is_ready
         }
 
