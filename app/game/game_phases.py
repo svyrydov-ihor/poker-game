@@ -74,9 +74,20 @@ class TurnHighlightArgs(AbsGamePhaseArgs):
 class PotArgs(AbsGamePhaseArgs):
     pot: float
 
+class TurnRequestArgs(AbsGamePhaseArgs):
+    player_bet: float
+    prev_bet: float
+    prev_raise: float
+    options: List[PlayerChoice]
+
 class TurnResponse(BaseModel):
     choice: PlayerChoice
     amount: float
+
+class ProcessedTurn(BaseModel):
+    is_raised: bool
+    curr_bet: float
+    curr_raise: float
 
 class IsReadyArgs(BaseModel):
     player_id: int

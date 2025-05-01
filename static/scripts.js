@@ -371,14 +371,16 @@ class PocketCardsHandler extends AbsGamePhaseHandler{
 class TurnRequestHandler extends AbsGamePhaseHandler{
     handle() {
         let data = this.args;
+        let player_bet = data["player_bet"];
+        let prev_bet = data["prev_bet"];
+        let prev_raise = data["prev_raise"];
         let options = data["options"];
-        let bet = parseInt(data["bet"]); // Ensure `bet` is treated as an integer
 
-        console.log(options);
+        let to_call = prev_bet - player_bet;
 
         if (options.includes("CALL")) {
             let call_button = document.getElementById("call_button");
-            call_button.textContent = "Call $" + bet;
+            call_button.textContent = "Call $" + to_call;
             call_button.style.display = "flex";
         }
 
@@ -390,9 +392,9 @@ class TurnRequestHandler extends AbsGamePhaseHandler{
                 button.style.display = "flex";
                 button.onclick = () => {
                     if (option_str === "raise") {
-                        this.showRaiseSlider(bet);
+                        this.showRaiseSlider(prev_raise);
                     } else {
-                        sendTurn(option, 0); // Handle other options like Call, Fold, Check
+                        sendTurn(option, to_call); // Handle other options like Call, Fold, Check
                     }
                 };
             }
@@ -401,11 +403,9 @@ class TurnRequestHandler extends AbsGamePhaseHandler{
     }
     /**
      * Show a slider for setting the raise amount and a submit button.
-     * @param {number} bet - Minimum bet amount.
+     * @param {number} prev_raise - Minimum bet amount.
      */
-    showRaiseSlider(bet) {
-        let min_raise = 2
-        bet += min_raise;
+    showRaiseSlider(prev_raise) {
         // Get player's balance from their balance element
         let player_balance_element = document.getElementById(`${client_id}_balance`);
         let player_balance = parseInt(player_balance_element.textContent.replace("Balance: $", "")); // Parse the balance as an integer
@@ -430,9 +430,10 @@ class TurnRequestHandler extends AbsGamePhaseHandler{
         // Create the slider input
         let slider = document.createElement("input");
         slider.type = "range";
-        slider.min = bet.toString(); // Minimum value is the `bet`
+        slider.min = prev_raise.toString(); // Minimum value is the `bet`
         slider.max = player_balance.toString(); // Maximum value is player's balance
-        slider.value = bet.toString(); // Default starting value is the `bet`
+        slider.step = "5"
+        slider.value = prev_raise.toString(); // Default starting value is the `bet`
         slider.id = "raise_slider";
 
         // Create a label to display the current slider value
@@ -452,7 +453,7 @@ class TurnRequestHandler extends AbsGamePhaseHandler{
         // Define the behavior for the submit button
         submit_button.onclick = () => {
             let raise_amount = parseInt(slider.value); // Get the slider value as an integer
-            if (raise_amount >= bet && raise_amount <= player_balance) {
+            if (raise_amount >= prev_raise && raise_amount <= player_balance) {
                 sendTurn("RAISE", raise_amount); // Send the raise amount
                 slider_container.remove(); // Remove the slider UI after submission
             } else {
@@ -479,8 +480,8 @@ class TurnResultHandler extends AbsGamePhaseHandler{
         let choice = data["choice"];
         let amount = data["amount"];
 
-        let player_balance = document.getElementById(player["id"] + "_balance");
-        player_balance.textContent = "Balance: $" + player["balance"];
+        document.getElementById(player["id"] + "_balance").textContent = "Balance: $" + player["balance"];
+        let turn_str = choice.charAt(0) + choice.toString().toLowerCase().slice(1, choice.length) + " $" + amount;
 
         let msg_end = ""
         switch (choice) {
@@ -489,6 +490,7 @@ class TurnResultHandler extends AbsGamePhaseHandler{
                 break;
             case "CHECK":
                 msg_end = " checked";
+                turn_str = "Check";
                 break;
             case "RAISE":
                 msg_end = " raised $" + amount;
@@ -501,6 +503,7 @@ class TurnResultHandler extends AbsGamePhaseHandler{
                 break;
         }
 
+        document.getElementById(player["id"] + "_turn").textContent = turn_str;
         let logs = new LogsHandler(player["name"] + msg_end)
         logs.handle();
     }

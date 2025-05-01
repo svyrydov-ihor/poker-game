@@ -3,7 +3,7 @@ from typing import Dict
 
 from starlette.websockets import WebSocket
 
-from app.game.game_phases import TurnResponse, PlayerChoice
+from app.game.game_phases import TurnResponse, PlayerChoice, GamePhase, TurnRequestArgs
 
 
 class ConnectionManager:
@@ -32,13 +32,13 @@ class ConnectionManager:
     async def log(self, msg):
         await self.broadcast({"LOG": msg})
 
-    async def request_turn(self, player_id: int, turn_options: list[PlayerChoice], bet: float) -> TurnResponse:
+    async def request_turn(self, player_id: int, turn_request_args: TurnRequestArgs) -> TurnResponse:
         """Sends a turn request to a player and waits for their response."""
         if player_id not in self.active_connections:
             return TurnResponse(choice=PlayerChoice.FOLD, amount=0)
 
         await self.send_personal(player_id, {
-            "TURN_REQUEST": {"options": [choice.value for choice in turn_options], "bet": bet}})
+            GamePhase.TURN_REQUEST.value: turn_request_args.dict()})
 
         # Wait for the player's response
         try:

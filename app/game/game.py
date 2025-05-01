@@ -20,7 +20,7 @@ class AbsGameHandler(ABC):
     async def send_personal(self, game_phase: GamePhase, player_id: int, abs_game_phase_args: AbsGamePhaseArgs)->None:
         pass
     @abstractmethod
-    async def turn(self, player: Player, turn_options: List[PlayerChoice], amount)->TurnResponse:
+    async def turn(self, player: Player, turn_request_args: TurnRequestArgs)->TurnResponse:
         pass
 
 class Game:
@@ -83,49 +83,19 @@ class Game:
         curr_player_pos = (self.bb_pos + 1) % len(self.players)
         prev_player_pos = self.bb_pos
         bb_next_pos = (self.bb_pos + 1) % len(self.players)
-        bet = self.bb_amount
 
         turn_options = [PlayerChoice.CALL, PlayerChoice.FOLD, PlayerChoice.RAISE]
-        is_raised = False
-
+        min_raise = self.sb_amount
         while True:
-            if curr_player_pos == self.sb_pos:
-                bet = self.sb_amount
-            elif curr_player_pos == self.bb_pos:
+            if curr_player_pos == self.bb_pos:
                 turn_options = [PlayerChoice.CHECK, PlayerChoice.FOLD, PlayerChoice.RAISE]
 
-            await self.game_handler.broadcast(GamePhase.TURN_HIGHLIGHT, TurnHighlightArgs(
-                prev_player=self.players[prev_player_pos],
-                curr_player=self.players[curr_player_pos]
-            ))
-            p_choice = await self.game_handler.turn(self.players[curr_player_pos],
-                                                    turn_options, bet)
+            processed_turn = await self.process_turn(curr_player_pos, prev_player_pos, min_raise, turn_options)
+            prev_player_pos = curr_player_pos
 
-            match p_choice.choice:
-                case PlayerChoice.CALL:
-                    self.players[curr_player_pos].balance -= bet
-                    self.players[curr_player_pos].bet += bet
-                    self.pot += bet
-                case PlayerChoice.CHECK:
-                    pass
-                case PlayerChoice.RAISE:
-                    self.players[curr_player_pos].balance -= (p_choice.amount - bet)
-                    self.players[curr_player_pos].bet += (p_choice.amount - bet)
-                    self.pot += (p_choice.amount - bet)
-                    asyncio.create_task(self.betting(curr_player_pos, p_choice.amount))
-                    is_raised = True
-                case PlayerChoice.FOLD:
-                    self.folded.append(self.players[curr_player_pos])
-
-            await self.game_handler.broadcast(GamePhase.TURN_RESULT, TurnResultArgs(
-                player = self.players[curr_player_pos],
-                choice = p_choice.choice,
-                amount = p_choice.amount,
-            ))
-            await self.game_handler.broadcast(GamePhase.POT, PotArgs(pot=self.pot))
-
-            if is_raised:
-              break
+            if processed_turn.is_raised:
+                await self.betting(curr_player_pos, processed_turn.curr_raise)
+                break
 
             prev_player_pos = curr_player_pos
             curr_player_pos = (curr_player_pos + 1) % len(self.players)
@@ -136,44 +106,20 @@ class Game:
             prev_player=self.players[prev_player_pos]
         ))
 
-    async def betting(self, bet_player_pos, bet):
+    async def betting(self, bet_player_pos, raise_amount):
         curr_player_pos = (bet_player_pos + 1) % len(self.players)
         prev_player_pos = bet_player_pos
         while True:
             turn_options = [PlayerChoice.CALL, PlayerChoice.FOLD, PlayerChoice.RAISE]
-            await self.game_handler.broadcast(GamePhase.TURN_HIGHLIGHT, TurnHighlightArgs(
-                prev_player=self.players[prev_player_pos],
-                curr_player=self.players[curr_player_pos]
-            ))
-            to_call = bet - self.players[curr_player_pos].bet
-            p_choice = await self.game_handler.turn(self.players[curr_player_pos],
-                                                    turn_options, to_call)
 
-            match p_choice.choice:
-                case PlayerChoice.CALL:
-                    self.players[curr_player_pos].balance -= to_call
-                    self.players[curr_player_pos].bet += to_call
-                    self.pot += to_call
-                case PlayerChoice.RAISE:
-                    self.players[curr_player_pos].balance -= (p_choice.amount - bet)
-                    self.players[curr_player_pos].bet += (p_choice.amount - bet)
-                    self.pot += (p_choice.amount - bet)
-                    asyncio.create_task(self.betting(curr_player_pos, p_choice.amount))
-                    is_raised = True
-                case PlayerChoice.FOLD:
-                    self.folded.append(self.players[curr_player_pos])
-
-            await self.game_handler.broadcast(GamePhase.TURN_RESULT, TurnResultArgs(
-                player=self.players[curr_player_pos],
-                choice=p_choice.choice,
-                amount=p_choice.amount,
-            ))
-            await self.game_handler.broadcast(GamePhase.POT, PotArgs(pot=self.pot))
-
-            if is_raised:
-              break
+            processed_turn = await self.process_turn(curr_player_pos, prev_player_pos, raise_amount, turn_options)
 
             prev_player_pos = curr_player_pos
+
+            if processed_turn.is_raised:
+                await self.betting(curr_player_pos, processed_turn.curr_raise)
+                break
+
             curr_player_pos = (curr_player_pos + 1) % len(self.players)
 
             if curr_player_pos == bet_player_pos:
@@ -181,3 +127,49 @@ class Game:
         await self.game_handler.broadcast(GamePhase.TURN_HIGHLIGHT, TurnHighlightArgs(
             prev_player=self.players[prev_player_pos]
         ))
+
+    async def process_turn(self, curr_player_pos, prev_player_pos, prev_raise, options: List[PlayerChoice])->ProcessedTurn:
+        await self.game_handler.broadcast(GamePhase.TURN_HIGHLIGHT, TurnHighlightArgs(
+                prev_player=self.players[prev_player_pos],
+                curr_player=self.players[curr_player_pos]))
+
+        p_choice = await self.game_handler.turn(self.players[curr_player_pos],
+                                                TurnRequestArgs(
+                                                    player_bet=self.players[curr_player_pos].bet,
+                                                    prev_bet=self.players[prev_player_pos].bet,
+                                                    prev_raise=prev_raise,
+                                                    options=options
+                                                ))
+        to_call = self.players[prev_player_pos].bet - self.players[curr_player_pos].bet
+
+        is_raised = False
+        curr_raise = prev_raise
+
+        match p_choice.choice:
+            case PlayerChoice.CALL:
+                self.players[curr_player_pos].bet += p_choice.amount
+                self.players[curr_player_pos].balance -= p_choice.amount
+                self.pot += p_choice.amount
+            case PlayerChoice.RAISE:
+                self.players[curr_player_pos].bet += to_call + p_choice.amount
+                self.players[curr_player_pos].balance -= to_call + p_choice.amount
+                self.pot += to_call + p_choice.amount
+                curr_raise = p_choice.amount
+                is_raised = True
+            case PlayerChoice.FOLD:
+                self.folded.append(self.players[curr_player_pos])
+            case PlayerChoice.CHECK:
+                pass
+
+        await self.game_handler.broadcast(GamePhase.TURN_RESULT, TurnResultArgs(
+            player=self.players[curr_player_pos],
+            choice=p_choice.choice,
+            amount=self.players[curr_player_pos].bet,
+        ))
+        await self.game_handler.broadcast(GamePhase.POT, PotArgs(pot=self.pot))
+
+        return ProcessedTurn(
+            is_raised=is_raised,
+            curr_bet=self.players[curr_player_pos].bet,
+            curr_raise=curr_raise
+        )
