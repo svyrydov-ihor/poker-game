@@ -1,36 +1,42 @@
-/* static/styles.css */
-
-/* --- Add or Modify these styles --- */
-
-/* Community Cards Styles */
-#community_cards {
-   position: absolute;
-   top: 50%; /* Center vertically */
-   left: 50%; /* Center horizontally */
-   transform: translate(-50%, -50%); /* Fine-tune centering */
-   display: none; /* Hide by default */
-   gap: 5px;
-   border: 1px dashed #ffffff;
-   padding: 8px;
-   min-height: 40px;
-   min-width: 150px;
-   align-items: center;
-   justify-content: center;
-   background-color: rgba(0, 0, 0, 0.1);
-   border-radius: 5px;
-   z-index: 5;
-   color: white;
+/* Common style for all cards (player and community) */
+.card-display {
+    width: 30px;
+    height: 45px;
+    background-color: white;
+    color: black;
+    border: 1px solid #6c757d; /* Slightly softer border */
+    border-radius: 3px;
+    display: inline-flex; /* Use flex to center content */
+    align-items: center;
+    justify-content: center;
+    font-size: 12px; /* Adjust font size */
+    font-weight: bold;
+    text-align: center;
+    box-sizing: border-box;
+    margin: 1px; /* Add minimal margin */
+    box-shadow: 1px 1px 2px rgba(0,0,0,0.1); /* Subtle shadow */
 }
 
-#poker_table_container.game-started #community_cards {
-    display: flex; /* Show when game starts */
+.community-card-placeholder {
+    width: 25px;
+    height: 40px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border: 1px dashed rgba(255, 255, 255, 0.5);
+    border-radius: 3px;
+    box-sizing: border-box;
+    display: inline-block;
+    margin: 1px; /* Match card margin */
+}
+
+.player_card {
+    display: none; /* Player cards initially hidden */
 }
 
 /* Pot Display Styles */
 #pot_display {
     position: absolute;
     /* Position it slightly above the vertical center (where community cards are) */
-    top: calc(50% - 55px); /* Adjust the 45px offset as needed */
+    top: calc(50% - 60px);
     left: 50%;
     transform: translateX(-50%); /* Center horizontally */
     color: white;
@@ -45,6 +51,26 @@
 #poker_table_container.game-started #pot_display {
     display: inline-block; /* Show when game starts */
 }
+#poker_table_container.game-started #community_cards {
+    display: flex; /* Show container when game starts */
+}
+
+#poker_table_container.game-started .player_cards_container {
+    gap: 2px; /* Reduce gap between player cards */
+}
+
+/* Player card size in circle view (use the common class) */
+#poker_table_container.game-started .card-display {
+    width: 25px;  /* Slightly smaller card in circle */
+    height: 38px; /* Maintain aspect ratio */
+    font-size: 10px; /* Smaller font */
+    /* Other styles inherited */
+}
+
+#poker_table_container.game-started .player_state {
+    /* Adjust gap if needed */
+    gap: 2px; /* Slightly reduce gap */
+}
 
 #pot {
     font-weight: bold;
@@ -52,12 +78,6 @@
     margin-left: 5px;
 }
 
-
-/* --- Keep all other existing styles from the previous complete CSS --- */
-/* Make sure styles for .main_container, .game_area, .logs_area, */
-/* #poker_table_container, #players, .player_div_default, etc. are still present */
-
-/* Example of keeping existing styles: */
 body {
     font-family: sans-serif;
     margin: 10px;
@@ -123,14 +143,21 @@ body {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
-.community_card {
+/* Style for actual community cards (when filled) */
+.community-card {
+    width: 30px;
+    height: 45px;
     background-color: white;
     color: black;
-    padding: 5px;
     border: 1px solid black;
     border-radius: 3px;
-    min-width: 25px;
+    display: inline-flex; /* Use flex to center content */
+    align-items: center;
+    justify-content: center;
+    font-size: 12px; /* Adjust font size */
+    font-weight: bold;
     text-align: center;
+    box-sizing: border-box;
 }
 
 #players {

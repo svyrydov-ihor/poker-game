@@ -4,7 +4,8 @@ from typing import Optional, List
 
 from pydantic.v1 import BaseModel
 
-from app.game.models import Player
+from app.game.models import Player, Card
+
 
 class GamePhase(enum.Enum):
     NEW_PLAYER = "NEW_PLAYER"
@@ -12,6 +13,7 @@ class GamePhase(enum.Enum):
     POCKET_CARDS = "POCKET_CARDS"
     PRE_FLOP_SB = "PRE_FLOP_SB"
     PRE_FLOP_BB = "PRE_FLOP_BB"
+    COMMUNITY_CARDS = "COMMUNITY_CARDS"
     TURN_REQUEST = "TURN_REQUEST"
     TURN_HIGHLIGHT = "TURN_HIGHLIGHT"
     TURN_RESULT = "TURN_RESULT"
@@ -37,6 +39,8 @@ def convert_players_to_dict(data):
         return data.to_dict()
     elif isinstance(data, PlayerChoice):
         return data.value
+    elif isinstance(data, Card):
+        return data.to_dict()
     elif isinstance(data, list):
         return [convert_players_to_dict(item) for item in data]
     elif isinstance(data, dict):
@@ -58,6 +62,9 @@ class PreFlopSBArgs(AbsGamePhaseArgs):
 class PreFlopBBArgs(AbsGamePhaseArgs):
     bb_amount: float
     player: Player
+
+class CommunityCardsArgs(AbsGamePhaseArgs):
+    cards: List[Card]
 
 class PocketCardsArgs(AbsGamePhaseArgs):
     pocket_cards: list[dict]

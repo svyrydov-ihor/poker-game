@@ -32,6 +32,7 @@ class Game:
         self.pot: float = 0
         self.sb_amount = sb_amount
         self.bb_amount = bb_amount
+        self.min_raise = sb_amount
         self.players: List[Player] = table.players
         self.folded: List[Player] = []
         self.sb_pos = -1
@@ -52,6 +53,7 @@ class Game:
             ordered_player_ids=ordered_ids))
         await self.pre_flop()
         await self.pre_flop_betting()
+        await self.flop()
 
     async def pre_flop(self):
         for player in self.players:
@@ -85,12 +87,11 @@ class Game:
         bb_next_pos = (self.bb_pos + 1) % len(self.players)
 
         turn_options = [PlayerChoice.CALL, PlayerChoice.FOLD, PlayerChoice.RAISE]
-        min_raise = self.sb_amount
         while True:
             if curr_player_pos == self.bb_pos:
                 turn_options = [PlayerChoice.CHECK, PlayerChoice.FOLD, PlayerChoice.RAISE]
 
-            processed_turn = await self.process_turn(curr_player_pos, prev_player_pos, min_raise, turn_options)
+            processed_turn = await self.process_turn(curr_player_pos, prev_player_pos, self.min_raise, turn_options)
             prev_player_pos = curr_player_pos
 
             if processed_turn.is_raised:
@@ -173,3 +174,33 @@ class Game:
             curr_bet=self.players[curr_player_pos].bet,
             curr_raise=curr_raise
         )
+
+    async def flop(self):
+        self.table.community_cards += self.table.get_cards(3)
+        await self.game_handler.broadcast(GamePhase.COMMUNITY_CARDS, CommunityCardsArgs(
+            cards=self.table.community_cards
+        ))
+
+        prev_player_pos = self.curr_dealer_pos
+        curr_player_pos = (self.curr_dealer_pos + 1) % len(self.players)
+        next_to_dealer = curr_player_pos
+
+        while True:
+            turn_options = [PlayerChoice.CHECK, PlayerChoice.FOLD, PlayerChoice.RAISE]
+
+            processed_turn = await self.process_turn(curr_player_pos, prev_player_pos, 0, turn_options)
+
+            prev_player_pos = curr_player_pos
+
+            if processed_turn.is_raised:
+                await self.betting(curr_player_pos, processed_turn.curr_raise)
+                break
+
+            curr_player_pos = (curr_player_pos + 1) % len(self.players)
+
+            if curr_player_pos == next_to_dealer:
+                break
+        await self.game_handler.broadcast(GamePhase.TURN_HIGHLIGHT, TurnHighlightArgs(
+            prev_player=self.players[prev_player_pos]
+        ))
+

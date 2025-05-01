@@ -33,6 +33,9 @@ ws.onmessage = function (event) {
         case "IS_READY":
             handler = new IsReadyHandler(data[key1]);
             break;
+        case "COMMUNITY_CARDS":
+            handler = new CommunityCardsHandler(data[key1]);
+            break;
         case "PRE_START":
             handler = new PreStartHandler(data[key1]);
             break;
@@ -147,14 +150,12 @@ function CreatePlayer(player) {
     let cards_container = document.createElement("div");
     cards_container.className = "player_cards_container"; // New class for card row
 
-    let card_0 = document.createElement("span"); // Use span
+    let card_0 = document.createElement("div"); // Use span
     card_0.id = id + "_card_0";
-    card_0.className = "player_card"; // Use class for styling
     cards_container.appendChild(card_0); // Add card to cards container
 
-    let card_1 = document.createElement("span"); // Use span
+    let card_1 = document.createElement("div"); // Use span
     card_1.id = id + "_card_1";
-    card_1.className = "player_card"; // Use class for styling
     cards_container.appendChild(card_1); // Add card to cards container
 
     state_div.appendChild(cards_container); // Add cards container to state div
@@ -280,7 +281,17 @@ class PreStartHandler extends AbsGamePhaseHandler{
 
         // Add class to the container to trigger CSS change
         const tableContainer = document.getElementById('poker_table_container');
-        tableContainer.classList.add('game-started'); // <<<<<< ADD THIS LINE
+        tableContainer.classList.add('game-started');
+        const communityCardsContainer = document.getElementById('community_cards');
+        communityCardsContainer.style.display="flex"
+        communityCardsContainer.innerHTML = ''; // Clear any previous cards
+        for (let i = 0; i < 5; i++) {
+            let placeholder = document.createElement('div');
+            placeholder.classList.add('community-card-placeholder');
+            // Add specific IDs if needed later for targeting individual cards
+            placeholder.id = `community_card_${i}`;
+            communityCardsContainer.appendChild(placeholder);
+        }
 
         // Hide/show dealer chips (existing logic)
         let prev_dealer_chip = document.getElementById(prev_dealer + "_dealer");
@@ -294,6 +305,10 @@ class PreStartHandler extends AbsGamePhaseHandler{
              if (turnStatus && (turnStatus.textContent === '✅' || turnStatus.textContent === '❌')) {
                  turnStatus.textContent = ''; // Clear ready checkmark
              }
+             const card0 = document.getElementById(id + "_card_0");
+             const card1 = document.getElementById(id + "_card_1");
+             if(card0) card0.textContent = ''; card0.style.display = 'none';
+             if(card1) card1.textContent = ''; card1.style.display = 'none';
         });
 
         // Hide ready button (existing logic)
@@ -353,8 +368,8 @@ class PocketCardsHandler extends AbsGamePhaseHandler{
                  // Set text content (e.g., "♥️A", "♠️K")
                  // You might want different styling for suit and rank later
                  cardElement.textContent = cards[i]["suit"] + cards[i]["rank"];
-                 // Make the card element visible if it wasn't
-                 cardElement.style.display = 'inline-block';
+                 cardElement.className = "card-display"
+                 cardElement.style.display = 'inline-flex';
             }
         }
          // Optional: Hide card elements if fewer than 2 cards are dealt (e.g., game reset)
@@ -533,5 +548,27 @@ class TurnHighlightHandler extends AbsGamePhaseHandler{
 
         let curr_player_name = document.getElementById(curr_player["id"] + "_name");
         curr_player_name.style.color = "green";
+    }
+}
+
+class CommunityCardsHandler extends AbsGamePhaseHandler{
+    handle(){
+        let data = this.args;
+        let cards = data["cards"];
+
+        let players_div = document.getElementById('players');
+        for (let i=0; i<players_div.children; i++) {
+            let name = players_div.children[i].id.split("_")[0]
+            document.getElementById(name + "_turn").textContent = "";
+        }
+
+        for (let i = 0; i < cards.length; i++) {
+            let cardPlaceholder = document.getElementById(`community_card_${i}`);
+            if (cardPlaceholder) {
+                cardPlaceholder.classList.remove('community-card-placeholder'); // Remove placeholder style
+                cardPlaceholder.classList.add('card-display'); // Add actual card style
+                cardPlaceholder.textContent = cards[i]["suit"] + cards[i]["rank"];
+            }
+        }
     }
 }
