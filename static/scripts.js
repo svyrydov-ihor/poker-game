@@ -557,9 +557,10 @@ class CommunityCardsHandler extends AbsGamePhaseHandler{
         let cards = data["cards"];
 
         let players_div = document.getElementById('players');
-        for (let i=0; i<players_div.children; i++) {
+        for (let i=0; i<players_div.children.length; i++) {
             let name = players_div.children[i].id.split("_")[0]
             document.getElementById(name + "_turn").textContent = "";
+            console.log(name)
         }
 
         for (let i = 0; i < cards.length; i++) {

@@ -181,6 +181,8 @@ class Game:
             cards=self.table.community_cards
         ))
 
+        for player in self.players: player.bet = 0
+
         prev_player_pos = self.curr_dealer_pos
         curr_player_pos = (self.curr_dealer_pos + 1) % len(self.players)
         next_to_dealer = curr_player_pos
@@ -188,7 +190,7 @@ class Game:
         while True:
             turn_options = [PlayerChoice.CHECK, PlayerChoice.FOLD, PlayerChoice.RAISE]
 
-            processed_turn = await self.process_turn(curr_player_pos, prev_player_pos, 0, turn_options)
+            processed_turn = await self.process_turn(curr_player_pos, prev_player_pos, self.min_raise, turn_options)
 
             prev_player_pos = curr_player_pos
 
