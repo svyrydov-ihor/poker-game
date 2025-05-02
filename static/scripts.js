@@ -3,58 +3,89 @@ var ws = new WebSocket(`ws://localhost:8000/ws/${client_id}`);
 
 ws.onmessage = function (event) {
     console.log("Received message: ", event.data);
-    let data = JSON.parse(event.data);
-    let keys = Object.keys(data);
-    let key1 = keys[0];
-    let handler = new AbsGamePhaseHandler();
-    switch (key1) {
-        case "LOG":
-            handler = new LogsHandler(data[key1]);
-            break;
-        case "NEW_PLAYER":
-            let player = data[key1]["player"];
-            if (player["id"] === client_id)
-                handler = new NewSelfHandler(player);
-            else
-                handler = new NewPlayerHandler(player);
-            break;
-        case "TURN_HIGHLIGHT":
-            handler = new TurnHighlightHandler(data[key1]);
-            break;
-        case "TURN_RESULT":
-            handler = new TurnResultHandler(data[key1]);
-            break;
-        case "POT":
-            handler = new PotHandler(data[key1]);
-            break;
-        case "TURN_REQUEST":
-            handler = new TurnRequestHandler(data[key1]);
-            break;
-        case "IS_READY":
-            handler = new IsReadyHandler(data[key1]);
-            break;
-        case "COMMUNITY_CARDS":
-            handler = new CommunityCardsHandler(data[key1]);
-            break;
-        case "PRE_START":
-            handler = new PreStartHandler(data[key1]);
-            break;
-        case "PRE_FLOP_SB":
-            handler = new PreFlopSBHandler(data[key1]);
-            break;
-        case "PRE_FLOP_BB":
-            handler = new PreFlopBBHandler(data[key1]);
-            break;
-        case "POCKET_CARDS":
-            handler = new PocketCardsHandler(data[key1]);
-            break;
-        default:
-            handler = new LogsHandler("Unknown state");
-            break;
-    }
-    handler.handle();
+    let ws_message_processor = new WSMessageProcessor(ws);
+    ws_message_processor.processMessage(event);
 };
 
+/**
+ * Strategy context class
+ * @class
+ */
+class WSMessageProcessor{
+    /**
+     * @constructor
+     * @param {WebSocket} ws - The WebSocket instance.
+     */
+    constructor(ws) {
+        this.ws = ws;
+        /**
+         * Concrete strategy
+         * @type {AbsGamePhaseHandler}
+         */
+        this.handler = new AbsGamePhaseHandler();
+    }
+
+    /**
+     *
+     * @param {MessageEvent} event
+     */
+    processMessage(event){
+        let data = JSON.parse(event.data);
+        let keys = Object.keys(data);
+        let key1 = keys[0];
+        switch (key1) {
+            case "LOG":
+                this.handler = new LogsHandler(data[key1]);
+                break;
+            case "NEW_PLAYER":
+                let player = data[key1]["player"];
+                if (player["id"] === client_id)
+                    this.handler = new NewSelfHandler(player);
+                else
+                    this.handler = new NewPlayerHandler(player);
+                break;
+            case "TURN_HIGHLIGHT":
+                this.handler = new TurnHighlightHandler(data[key1]);
+                break;
+            case "TURN_RESULT":
+                this.handler = new TurnResultHandler(data[key1]);
+                break;
+            case "POT":
+                this.handler = new PotHandler(data[key1]);
+                break;
+            case "TURN_REQUEST":
+                this.handler = new TurnRequestHandler(data[key1]);
+                break;
+            case "IS_READY":
+                this.handler = new IsReadyHandler(data[key1]);
+                break;
+            case "COMMUNITY_CARDS":
+                this.handler = new CommunityCardsHandler(data[key1]);
+                break;
+            case "PRE_START":
+                this.handler = new PreStartHandler(data[key1]);
+                break;
+            case "PRE_FLOP_SB":
+                this.handler = new PreFlopSBHandler(data[key1]);
+                break;
+            case "PRE_FLOP_BB":
+                this.handler = new PreFlopBBHandler(data[key1]);
+                break;
+            case "POCKET_CARDS":
+                this.handler = new PocketCardsHandler(data[key1]);
+                break;
+            default:
+                this.handler = new LogsHandler("Unknown state");
+                break;
+        }
+        this.handler.handle();
+    }
+}
+
+/**
+ * Abstract strategy class
+ * @class
+ */
 class AbsGamePhaseHandler {
     constructor(args) {
         this.args = args;
@@ -65,6 +96,10 @@ class AbsGamePhaseHandler {
     }
 }
 
+/**
+ * Concrete strategy class, extends abstract strategy class
+ * @class
+ */
 class LogsHandler extends AbsGamePhaseHandler{
     handle(){
         let message = this.args;
