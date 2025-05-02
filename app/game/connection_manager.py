@@ -5,8 +5,11 @@ from starlette.websockets import WebSocket
 
 from app.game.game_phases import TurnResponse, PlayerChoice, GamePhase, TurnRequestArgs
 
-
 class ConnectionManager:
+    """
+    Manages WebSocket connections and turn requests for players in a game
+    Similar to Observer pattern, but with concrete subscribers (WebSockets)
+    """
     def __init__(self):
         self.active_connections: Dict[int, WebSocket] = {}
         self.pending_turns: Dict[int, asyncio.Future[TurnResponse]] = {}
