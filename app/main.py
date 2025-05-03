@@ -11,7 +11,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from app.game.concrete_game_handler import ConcreteGameHandler
 from app.game.connection_manager import ConnectionManager
-from app.game.game import Game
+from app.game.game import Game, ConcreteGameBuilder
 from app.game.game_schema import GamePhase, NewPlayerArgs, TurnResponse, PlayerAction, IsReadyArgs
 from app.game.models import Player
 from app.game.table import Table
@@ -71,10 +71,14 @@ async def start_game():
              await connection_manager.log("Not enough players to start.")
              return
 
-        small_blind = 5
-        big_blind = 10
-        game_handler = ConcreteGameHandler(table.players, [], small_blind, big_blind, connection_manager)
-        game_instance = Game(table, game_handler, small_blind, big_blind)
+        game_handler = ConcreteGameHandler(table.players, [], 5, 10, connection_manager)
+        game_builder = ConcreteGameBuilder()
+        game_builder.set_game_handler(game_handler)
+        game_builder.set_table(table)
+        game_builder.set_small_blind_amount(5)
+        game_builder.set_big_blind_amount(10)
+        game_builder.set_min_raise_amount(5)
+        game_instance = game_builder.get_built_game()
         await connection_manager.log("Game started ❗")
         asyncio.create_task(game_instance.start_game())
     except Exception as e:
