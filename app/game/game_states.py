@@ -23,33 +23,64 @@ class AbsGameState(ABC):
         """
         Template method for betting round
         """
-        await self._before_betting_round_action() # hook
-        turn_options = self._get_init_turn_options() # hook
-        aggressor_pos = self._get_init_aggressor_pos() # hook
-        curr_player_pos = self._get_starting_pos() #hook
-        prev_player_pos = (curr_player_pos - 1 + len(self.game.players)) % len(self.game.players)
-        min_raise = self._get_min_raise() # hook
-        is_raised = False
 
-        while True:
-            if not is_raised: turn_options = self._change_turn_options(curr_player_pos, turn_options)
+        # setup defined by hooks
+        await self._before_betting_round_action()
+        turn_options = self._get_init_turn_options()
+        last_raiser_pos = self._get_init_aggressor_pos()
+        curr_player_pos = self._get_starting_pos()
+        prev_player_pos = (curr_player_pos - 1 + len(self.game.players)) % len(self.game.players)
+        curr_bet = self._get_init_bet()
+        last_raise_by = self._get_min_raise()
+
+        active_players = [p for p in self.game.players if p not in self.game.folded]
+        if len(active_players) <= 1: return
+
+        needs_to_act: Set[int] = {p.id for p in active_players}
+        action_opened = False
+
+        while len(needs_to_act) > 0:
+            player_to_act = self.game.players[curr_player_pos]
+
+            if player_to_act.id in self.game.folded or player_to_act.id not in needs_to_act:
+                curr_player_pos = (curr_player_pos + 1) % len(self.game.players)
+                continue # move to the next player
+
+            curr_turn_options = list(turn_options)
+            if not action_opened: # hook for pre-flop BB position
+                curr_turn_options = self._change_turn_options(curr_player_pos, turn_options)
+
+            player_who_acted_pos = curr_player_pos
+
             processed_turn = await self._process_turn(
                 curr_player_pos=curr_player_pos,
                 prev_player_pos=prev_player_pos,
-                prev_raise=min_raise,
-                options=turn_options)
+                curr_bet=curr_bet,
+                prev_raise=last_raise_by,
+                options=curr_turn_options)
 
-            if processed_turn.is_raised:
-                aggressor_pos = curr_player_pos
-                min_raise = processed_turn.curr_raise
-                turn_options = [PlayerChoice.CALL, PlayerChoice.FOLD, PlayerChoice.RAISE]
-                is_raised = True
+            player_who_acted = player_to_act
+            needs_to_act.remove(player_who_acted.id)
 
-            prev_player_pos = curr_player_pos
+            if player_who_acted in self.game.folded:
+                active_players = [p for p in self.game.players if p not in self.game.folded]
+                if len(active_players) <= 1:
+                    needs_to_act.clear()
+
+            elif processed_turn.choice == PlayerChoice.RAISE:
+                action_opened = True
+                curr_bet = processed_turn.curr_bet
+                last_raise_by = processed_turn.curr_raise
+                last_raiser_pos = player_who_acted_pos
+                needs_to_act = {p.id for p in active_players if p.id != player_who_acted.id}
+                turn_options = [PlayerChoice.CALL, PlayerChoice.RAISE, PlayerChoice.FOLD]
+
+            else:
+                pass
+
+            prev_player_pos = player_who_acted_pos
             curr_player_pos = (curr_player_pos + 1) % len(self.game.players)
 
-            if curr_player_pos == aggressor_pos:
-                break
         await self.game.game_handler.broadcast(GamePhase.TURN_HIGHLIGHT, TurnHighlightArgs(
             prev_player=self.game.players[prev_player_pos]))
 
@@ -73,6 +104,10 @@ class AbsGameState(ABC):
         """hook"""
         pass
 
+    def _get_init_bet(self):
+        """hook"""
+        return 0
+
     def _get_min_raise(self):
         """hook"""
         return self.game.min_raise
@@ -83,57 +118,55 @@ class AbsGameState(ABC):
         """
         return turn_options
 
-    async def _deal_community_cards(self, number: int):
-        self.game.table.community_cards += self.game.table.get_cards(number)
-        await self.game.game_handler.broadcast(GamePhase.COMMUNITY_CARDS, CommunityCardsArgs(
-            cards=self.game.table.community_cards
-        ))
-
-    async def _process_turn(self, curr_player_pos, prev_player_pos, prev_raise, options: List[PlayerChoice])->ProcessedTurn:
+    async def _process_turn(self, curr_player_pos, prev_player_pos, curr_bet, prev_raise, options: List[PlayerChoice])->ProcessedTurn:
         await self.game.game_handler.broadcast(GamePhase.TURN_HIGHLIGHT, TurnHighlightArgs(
                 prev_player=self.game.players[prev_player_pos],
                 curr_player=self.game.players[curr_player_pos]))
 
+        player_acting = self.game.players[curr_player_pos]
+
         p_choice = await self.game.game_handler.turn(self.game.players[curr_player_pos],
                                                 TurnRequestArgs(
-                                                    player_bet=self.game.players[curr_player_pos].bet,
-                                                    prev_bet=self.game.players[prev_player_pos].bet,
+                                                    player_bet=player_acting.bet,
+                                                    prev_bet=curr_bet,
                                                     prev_raise=prev_raise,
                                                     options=options
                                                 ))
-        to_call = self.game.players[prev_player_pos].bet - self.game.players[curr_player_pos].bet
-
-        is_raised = False
+        to_call = curr_bet - player_acting.bet
         curr_raise = prev_raise
 
         match p_choice.choice:
             case PlayerChoice.CALL:
-                self.game.players[curr_player_pos].bet += p_choice.amount
-                self.game.players[curr_player_pos].balance -= p_choice.amount
+                player_acting.bet += p_choice.amount
+                player_acting.balance -= p_choice.amount
                 self.game.pot += p_choice.amount
             case PlayerChoice.RAISE:
-                self.game.players[curr_player_pos].bet += to_call + p_choice.amount
-                self.game.players[curr_player_pos].balance -= to_call + p_choice.amount
+                player_acting.bet += to_call + p_choice.amount
+                player_acting.balance -= to_call + p_choice.amount
                 self.game.pot += to_call + p_choice.amount
                 curr_raise = p_choice.amount
-                is_raised = True
             case PlayerChoice.FOLD:
                 self.game.folded.append(self.game.players[curr_player_pos])
             case PlayerChoice.CHECK:
                 pass
 
         await self.game.game_handler.broadcast(GamePhase.TURN_RESULT, TurnResultArgs(
-            player=self.game.players[curr_player_pos],
+            player=player_acting,
             choice=p_choice.choice,
-            amount=self.game.players[curr_player_pos].bet,
+            amount=player_acting.bet,
         ))
         await self.game.game_handler.broadcast(GamePhase.POT, PotArgs(pot=self.game.pot))
 
         return ProcessedTurn(
-            is_raised=is_raised,
-            curr_bet=self.game.players[curr_player_pos].bet,
+            choice=p_choice.choice,
+            curr_bet=player_acting.bet,
             curr_raise=curr_raise
         )
+
+    async def _deal_community_cards(self, number: int):
+        self.game.table.community_cards += self.game.table.get_cards(number)
+        await self.game.game_handler.broadcast(GamePhase.COMMUNITY_CARDS, CommunityCardsArgs(
+            cards=self.game.table.community_cards))
 
 class PreFlopState(AbsGameState):
     def _get_init_turn_options(self):
@@ -146,6 +179,11 @@ class PreFlopState(AbsGameState):
     def _get_starting_pos(self):
         return (self.game.bb_pos + 1) % len(self.game.players)
 
+    @override
+    def _get_init_bet(self):
+        return self.game.bb_amount
+
+    @override
     def _change_turn_options(self, curr_player_pos, turn_options: List[PlayerChoice])->List[PlayerChoice]:
         if curr_player_pos == self.game.bb_pos: return [PlayerChoice.CHECK, PlayerChoice.FOLD, PlayerChoice.RAISE]
         else: return turn_options
@@ -183,11 +221,6 @@ class PreFlopState(AbsGameState):
             bb_amount=self.game.bb_amount,
             player=self.game.players[self.game.bb_pos]))
         await self.game.game_handler.broadcast(GamePhase.POT, PotArgs(pot=self.game.pot))
-
-    @override
-    def _change_turn_options(self, curr_player_pos, turn_options: List[PlayerChoice])->List[PlayerChoice]:
-        if curr_player_pos == self.game.bb_pos: return [PlayerChoice.CHECK, PlayerChoice.FOLD, PlayerChoice.RAISE]
-        else: return turn_options
 
 class FlopState(AbsGameState):
     def _get_init_turn_options(self):

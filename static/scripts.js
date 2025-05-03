@@ -8,13 +8,13 @@ ws.onmessage = function (event) {
 };
 
 /**
- * Strategy context class
+ * Strategy pattern context class
  * @class
  */
 class WSMessageProcessor{
     /**
      * @constructor
-     * @param {WebSocket} ws - The WebSocket instance.
+     * @param {WebSocket} ws - The WebSocket instance
      */
     constructor(ws) {
         this.ws = ws;
@@ -547,6 +547,7 @@ class TurnResultHandler extends AbsGamePhaseHandler{
                 break;
             case "FOLD":
                 msg_end = " folded";
+                turn_str = choice.charAt(0) + choice.toString().toLowerCase().slice(1, choice.length)
                 break;
             default:
                 msg_end = " unknown choice"
@@ -594,8 +595,10 @@ class CommunityCardsHandler extends AbsGamePhaseHandler{
         let players_div = document.getElementById('players');
         for (let i=0; i<players_div.children.length; i++) {
             let name = players_div.children[i].id.split("_")[0]
-            document.getElementById(name + "_turn").textContent = "";
-            console.log(name)
+            let turn_element = document.getElementById(name + "_turn");
+            if (turn_element.textContent !== "Fold"){
+                turn_element.textContent = "";
+            }
         }
 
         for (let i = 0; i < cards.length; i++) {

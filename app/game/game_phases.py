@@ -92,7 +92,7 @@ class TurnResponse(BaseModel):
     amount: float
 
 class ProcessedTurn(BaseModel):
-    is_raised: bool
+    choice: PlayerChoice
     curr_bet: float
     curr_raise: float
 
