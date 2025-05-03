@@ -8,8 +8,10 @@ from typing import TYPE_CHECKING, List, Set
 if TYPE_CHECKING:
     from app.game.game import Game
 
-
 class AbsGameState(ABC):
+    """
+    State pattern for game flow
+    """
     def __init__(self, game: 'Game'):
         self.game = game
 
