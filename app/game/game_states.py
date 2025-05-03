@@ -55,21 +55,26 @@ class AbsGameState(ABC):
 
     @abstractmethod
     async def _before_betting_round_action(self):
+        """hook"""
         pass
 
     @abstractmethod
     def _get_init_turn_options(self):
+        """hook"""
         pass
 
     @abstractmethod
     def _get_init_aggressor_pos(self):
+        """hook"""
         pass
 
     @abstractmethod
     def _get_starting_pos(self):
+        """hook"""
         pass
 
     def _get_min_raise(self):
+        """hook"""
         return self.game.min_raise
 
     def _change_turn_options(self, curr_player_pos, turn_options: List[PlayerChoice])->List[PlayerChoice]:
@@ -140,9 +145,6 @@ class PreFlopState(AbsGameState):
     @override
     def _get_starting_pos(self):
         return (self.game.bb_pos + 1) % len(self.game.players)
-
-    def _get_min_raise(self):
-        return self.game.min_raise
 
     def _change_turn_options(self, curr_player_pos, turn_options: List[PlayerChoice])->List[PlayerChoice]:
         if curr_player_pos == self.game.bb_pos: return [PlayerChoice.CHECK, PlayerChoice.FOLD, PlayerChoice.RAISE]
