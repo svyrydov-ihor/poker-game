@@ -527,14 +527,14 @@ class TurnResultHandler extends AbsGamePhaseHandler{
     handle() {
         let data = this.args;
         let player = data["player"];
-        let choice = data["choice"];
+        let action = data["action"];
         let amount = data["amount"];
 
         document.getElementById(player["id"] + "_balance").textContent = "Balance: $" + player["balance"];
-        let turn_str = choice.charAt(0) + choice.toString().toLowerCase().slice(1, choice.length) + " $" + amount;
+        let turn_str = action.charAt(0) + action.toString().toLowerCase().slice(1, action.length) + " $" + amount;
 
         let msg_end = ""
-        switch (choice) {
+        switch (action) {
             case "CALL":
                 msg_end = " called $" + amount;
                 break;
@@ -547,10 +547,10 @@ class TurnResultHandler extends AbsGamePhaseHandler{
                 break;
             case "FOLD":
                 msg_end = " folded";
-                turn_str = choice.charAt(0) + choice.toString().toLowerCase().slice(1, choice.length)
+                turn_str = action.charAt(0) + action.toString().toLowerCase().slice(1, action.length)
                 break;
             default:
-                msg_end = " unknown choice"
+                msg_end = " unknown action"
                 break;
         }
 

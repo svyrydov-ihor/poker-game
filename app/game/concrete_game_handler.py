@@ -2,7 +2,7 @@ from typing import List
 
 from app.game.connection_manager import ConnectionManager
 from app.game.game import AbsGameHandler
-from app.game.game_phases import *
+from app.game.game_schema import *
 from app.game.models import Player, Card
 
 class ConcreteGameHandler(AbsGameHandler):

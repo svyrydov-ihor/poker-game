@@ -20,9 +20,9 @@ async function readyButtonClick(button) {
         });
 }
 
-function sendTurn(choice, amount=0) {
+function sendTurn(action, amount=0) {
     ws.send(JSON.stringify({
-        "TURN_RESPONSE": {"choice": choice, "amount": amount}
+        "TURN_RESPONSE": {"action": action, "amount": amount}
     }))
 
     let buttons = document.getElementById("self_buttons");

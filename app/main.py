@@ -12,7 +12,7 @@ from starlette.websockets import WebSocketDisconnect
 from app.game.concrete_game_handler import ConcreteGameHandler
 from app.game.connection_manager import ConnectionManager
 from app.game.game import Game
-from app.game.game_phases import GamePhase, NewPlayerArgs, TurnResponse, PlayerChoice, IsReadyArgs
+from app.game.game_schema import GamePhase, NewPlayerArgs, TurnResponse, PlayerAction, IsReadyArgs
 from app.game.models import Player
 from app.game.table import Table
 
@@ -112,7 +112,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: int):
                     turn_response_data = TurnResponse(**data["TURN_RESPONSE"])
                     # Convert the validated model to a TurnResult object
                     turn_result = TurnResponse(
-                        choice=turn_response_data.choice,
+                        action=turn_response_data.action,
                         amount=turn_response_data.amount
                     )
                     # Process the turn response using the connection manager
@@ -121,7 +121,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: int):
                     logger.error(f"Invalid turn response format from client {client_id}: {e}")
                     # Optionally, send an error back to the client or assume a FOLD
                     connection_manager.process_turn_response(client_id,
-                                                             TurnResponse(choice=PlayerChoice.FOLD, amount=0))
+                                                             TurnResponse(action=PlayerAction.FOLD, amount=0))
             # Add other message handling logic here as needed
             else:
                 logger.warning(f"Received unknown message format from client {client_id}: {data}")

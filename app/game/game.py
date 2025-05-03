@@ -2,7 +2,7 @@ import asyncio
 from abc import ABC, abstractmethod
 from typing import List
 
-from app.game.game_phases import *
+from app.game.game_schema import *
 from app.game.game_states import PreFlopState, AbsGameState
 from app.game.models import Player, Card
 from app.game.table import Table

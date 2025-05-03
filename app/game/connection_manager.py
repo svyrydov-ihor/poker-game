@@ -3,7 +3,7 @@ from typing import Dict
 
 from starlette.websockets import WebSocket
 
-from app.game.game_phases import TurnResponse, PlayerChoice, GamePhase, TurnRequestArgs
+from app.game.game_schema import TurnResponse, PlayerAction, GamePhase, TurnRequestArgs
 
 class ConnectionManager:
     """
@@ -21,7 +21,7 @@ class ConnectionManager:
     def disconnect(self, id):
         if id in self.pending_turns:
             if not self.pending_turns[id].done():
-                self.pending_turns[id].set_result(TurnResponse(choice=PlayerChoice.FOLD, amount=0))
+                self.pending_turns[id].set_result(TurnResponse(action=PlayerAction.FOLD, amount=0))
             del self.pending_turns[id]
         self.active_connections.pop(id)
 
@@ -38,7 +38,7 @@ class ConnectionManager:
     async def request_turn(self, player_id: int, turn_request_args: TurnRequestArgs) -> TurnResponse:
         """Sends a turn request to a player and waits for their response."""
         if player_id not in self.active_connections:
-            return TurnResponse(choice=PlayerChoice.FOLD, amount=0)
+            return TurnResponse(action=PlayerAction.FOLD, amount=0)
 
         await self.send_personal(player_id, {
             GamePhase.TURN_REQUEST.value: turn_request_args.dict()})
@@ -52,12 +52,12 @@ class ConnectionManager:
             result = await self.pending_turns[player_id]
             return result
         except asyncio.CancelledError:
-            return TurnResponse(choice=PlayerChoice.FOLD, amount=0)
+            return TurnResponse(action=PlayerAction.FOLD, amount=0)
 
     def process_turn_response(self, player_id: int, turn_response: TurnResponse):
         """Processes the turn response received from a player."""
         if player_id in self.pending_turns and not self.pending_turns[player_id].done():
-            # Validate the received choice against the allowed options (optional, but good practice)
-            # For simplicity, we'll assume the client sends a valid choice from the options provided earlier
-            turn_result = TurnResponse(choice=turn_response.choice, amount=turn_response.amount)
+            # Validate the received action against the allowed options (optional, but good practice)
+            # For simplicity, we'll assume the client sends a valid action from the options provided earlier
+            turn_result = TurnResponse(action=turn_response.action, amount=turn_response.amount)
             self.pending_turns[player_id].set_result(turn_result)

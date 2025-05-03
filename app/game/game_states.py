@@ -1,9 +1,12 @@
 from abc import ABC, abstractmethod
 
+from starlette.responses import RangeNotSatisfiable
 from typing_extensions import override
 
-from app.game.game_phases import *
+from app.game.game_schema import *
 from typing import TYPE_CHECKING, List, Set
+
+from app.game.player_action_commands import *
 
 if TYPE_CHECKING:
     from app.game.game import Game
@@ -27,7 +30,7 @@ class AbsGameState(ABC):
         # setup defined by hooks
         await self._before_betting_round_action()
         turn_options = self._get_init_turn_options()
-        last_raiser_pos = self._get_init_aggressor_pos()
+        #last_raiser_pos = self._get_init_aggressor_pos()
         curr_player_pos = self._get_starting_pos()
         prev_player_pos = (curr_player_pos - 1 + len(self.game.players)) % len(self.game.players)
         curr_bet = self._get_init_bet()
@@ -67,13 +70,13 @@ class AbsGameState(ABC):
                 if len(active_players) <= 1:
                     needs_to_act.clear()
 
-            elif processed_turn.choice == PlayerChoice.RAISE:
+            elif processed_turn.action == PlayerAction.RAISE:
                 action_opened = True
                 curr_bet = processed_turn.curr_bet
                 last_raise_by = processed_turn.curr_raise
-                last_raiser_pos = player_who_acted_pos
+                #last_raiser_pos = player_who_acted_pos
                 needs_to_act = {p.id for p in active_players if p.id != player_who_acted.id}
-                turn_options = [PlayerChoice.CALL, PlayerChoice.RAISE, PlayerChoice.FOLD]
+                turn_options = [PlayerAction.CALL, PlayerAction.RAISE, PlayerAction.FOLD]
 
             else:
                 pass
@@ -112,20 +115,20 @@ class AbsGameState(ABC):
         """hook"""
         return self.game.min_raise
 
-    def _change_turn_options(self, curr_player_pos, turn_options: List[PlayerChoice])->List[PlayerChoice]:
+    def _change_turn_options(self, curr_player_pos, turn_options: List[PlayerAction])->List[PlayerAction]:
         """
         overridden in PreFlopState
         """
         return turn_options
 
-    async def _process_turn(self, curr_player_pos, prev_player_pos, curr_bet, prev_raise, options: List[PlayerChoice])->ProcessedTurn:
+    async def _process_turn(self, curr_player_pos, prev_player_pos, curr_bet, prev_raise, options: List[PlayerAction])->ProcessedTurn:
         await self.game.game_handler.broadcast(GamePhase.TURN_HIGHLIGHT, TurnHighlightArgs(
                 prev_player=self.game.players[prev_player_pos],
                 curr_player=self.game.players[curr_player_pos]))
 
         player_acting = self.game.players[curr_player_pos]
 
-        p_choice = await self.game.game_handler.turn(self.game.players[curr_player_pos],
+        turn_response = await self.game.game_handler.turn(self.game.players[curr_player_pos],
                                                 TurnRequestArgs(
                                                     player_bet=player_acting.bet,
                                                     prev_bet=curr_bet,
@@ -133,35 +136,26 @@ class AbsGameState(ABC):
                                                     options=options
                                                 ))
         to_call = curr_bet - player_acting.bet
-        curr_raise = prev_raise
 
-        match p_choice.choice:
-            case PlayerChoice.CALL:
-                player_acting.bet += p_choice.amount
-                player_acting.balance -= p_choice.amount
-                self.game.pot += p_choice.amount
-            case PlayerChoice.RAISE:
-                player_acting.bet += to_call + p_choice.amount
-                player_acting.balance -= to_call + p_choice.amount
-                self.game.pot += to_call + p_choice.amount
-                curr_raise = p_choice.amount
-            case PlayerChoice.FOLD:
-                self.game.folded.append(self.game.players[curr_player_pos])
-            case PlayerChoice.CHECK:
-                pass
+        command_invoker = CommandInvoker()
+        command_args = PlayerActionCommandArgs(
+            game=self.game,
+            player_acting=player_acting,
+            turn_response=turn_response,
+            to_call=to_call,
+            prev_raise=prev_raise)
 
-        await self.game.game_handler.broadcast(GamePhase.TURN_RESULT, TurnResultArgs(
-            player=player_acting,
-            choice=p_choice.choice,
-            amount=player_acting.bet,
-        ))
-        await self.game.game_handler.broadcast(GamePhase.POT, PotArgs(pot=self.game.pot))
+        match turn_response.action:
+            case PlayerAction.CALL:
+                command_invoker.set_player_action_command(CallCommand(command_args))
+            case PlayerAction.RAISE:
+                command_invoker.set_player_action_command(RaiseCommand(command_args))
+            case PlayerAction.FOLD:
+                command_invoker.set_player_action_command(FoldCommand(command_args))
+            case PlayerAction.CHECK:
+                command_invoker.set_player_action_command(CheckCommand(command_args))
 
-        return ProcessedTurn(
-            choice=p_choice.choice,
-            curr_bet=player_acting.bet,
-            curr_raise=curr_raise
-        )
+        return await command_invoker.player_action_command.process_turn()
 
     async def _deal_community_cards(self, number: int):
         self.game.table.community_cards += self.game.table.get_cards(number)
@@ -170,7 +164,7 @@ class AbsGameState(ABC):
 
 class PreFlopState(AbsGameState):
     def _get_init_turn_options(self):
-        return [PlayerChoice.CALL, PlayerChoice.FOLD, PlayerChoice.RAISE]
+        return [PlayerAction.CALL, PlayerAction.FOLD, PlayerAction.RAISE]
 
     def _get_init_aggressor_pos(self):
         return (self.game.bb_pos + 1) % len(self.game.players)
@@ -184,8 +178,8 @@ class PreFlopState(AbsGameState):
         return self.game.bb_amount
 
     @override
-    def _change_turn_options(self, curr_player_pos, turn_options: List[PlayerChoice])->List[PlayerChoice]:
-        if curr_player_pos == self.game.bb_pos: return [PlayerChoice.CHECK, PlayerChoice.FOLD, PlayerChoice.RAISE]
+    def _change_turn_options(self, curr_player_pos, turn_options: List[PlayerAction])->List[PlayerAction]:
+        if curr_player_pos == self.game.bb_pos: return [PlayerAction.CHECK, PlayerAction.FOLD, PlayerAction.RAISE]
         else: return turn_options
 
     async def start_flow(self):
@@ -224,7 +218,7 @@ class PreFlopState(AbsGameState):
 
 class FlopState(AbsGameState):
     def _get_init_turn_options(self):
-        return [PlayerChoice.CHECK, PlayerChoice.FOLD, PlayerChoice.RAISE]
+        return [PlayerAction.CHECK, PlayerAction.FOLD, PlayerAction.RAISE]
 
     def _get_init_aggressor_pos(self):
         return self.game.sb_pos

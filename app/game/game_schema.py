@@ -1,11 +1,10 @@
 import enum
 from abc import ABC
-from typing import Optional, List
-
+from typing import Optional, List, TYPE_CHECKING
 from pydantic.v1 import BaseModel
-
 from app.game.models import Player, Card
-
+if TYPE_CHECKING:
+    from app.game.game import Game
 
 class GamePhase(enum.Enum):
     NEW_PLAYER = "NEW_PLAYER"
@@ -20,7 +19,7 @@ class GamePhase(enum.Enum):
     POT = "POT"
     IS_READY = "IS_READY"
 
-class PlayerChoice(enum.Enum):
+class PlayerAction(enum.Enum):
     CALL = "CALL"
     CHECK = "CHECK"
     RAISE = "RAISE"
@@ -37,7 +36,7 @@ class AbsGamePhaseArgs(ABC, BaseModel):
 def convert_players_to_dict(data):
     if isinstance(data, Player):
         return data.to_dict()
-    elif isinstance(data, PlayerChoice):
+    elif isinstance(data, PlayerAction):
         return data.value
     elif isinstance(data, Card):
         return data.to_dict()
@@ -71,7 +70,7 @@ class PocketCardsArgs(AbsGamePhaseArgs):
 
 class TurnResultArgs(AbsGamePhaseArgs):
     player: Player
-    choice: PlayerChoice
+    action: PlayerAction
     amount: float
 
 class TurnHighlightArgs(AbsGamePhaseArgs):
@@ -85,17 +84,25 @@ class TurnRequestArgs(AbsGamePhaseArgs):
     player_bet: float
     prev_bet: float
     prev_raise: float
-    options: List[PlayerChoice]
+    options: List[PlayerAction]
 
 class TurnResponse(BaseModel):
-    choice: PlayerChoice
+    action: PlayerAction
     amount: float
 
 class ProcessedTurn(BaseModel):
-    choice: PlayerChoice
+    action: PlayerAction
     curr_bet: float
     curr_raise: float
 
 class IsReadyArgs(BaseModel):
     player_id: int
     is_ready: bool
+
+class PlayerActionCommandArgs:
+    def __init__(self, game: 'Game', player_acting: Player, turn_response: TurnResponse, to_call: float, prev_raise: float):
+        self.game = game
+        self.player_acting = player_acting
+        self.turn_response = turn_response
+        self.to_call = to_call
+        self.prev_raise = prev_raise
