@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
 from typing import List
-
 from app.game.game_schema import EvaluatedHand, HandValue
 from app.game.models import Card
 
-
 class AbsHandEvaluator(ABC):
+    """
+    Chain of responsibility pattern for hand evaluation
+    """
     def __init__(self):
         self.next_evaluator = None
 
@@ -54,19 +55,15 @@ class RoyalFlushEvaluator(AbsHandEvaluator):
         total_cards = community_cards + pocket_cards
         suit_groups = self.group_by_suits(total_cards)
 
-        has_5_suit = False
-        with_5_suit = []
-        for same_suit in suit_groups:
-            if len(same_suit) >= 5:
-                with_5_suit = same_suit
-                has_5_suit = True
-                break
+        with_5_suit_groups = [group for group in suit_groups if len(group) >= 5]
 
-        if not has_5_suit:
+        if len(with_5_suit_groups) == 0:
             self.next_evaluator = FourOfAKindEvaluator()
             return self.next_evaluator.evaluate_hand(community_cards, pocket_cards)
 
+        with_5_suit = with_5_suit_groups[0]
         with_5_suit.sort(key=lambda c: c.value)
+
         if with_5_suit[-1].value == 14:
             if [c.value for c in with_5_suit] == [10, 11, 12, 13, 14]:
                 highest_in_hand_value = 14
@@ -87,32 +84,26 @@ class StraightFlushEvaluator(AbsHandEvaluator):
         total_cards = community_cards + pocket_cards
         suit_groups = self.group_by_suits(total_cards)
 
-        has_5_suit = False
-        with_5_suit = []
-        for same_suit in suit_groups:
-            if len(same_suit) >= 5:
-                with_5_suit = same_suit
-                has_5_suit = True
-                break
+        with_5_suit_groups = [group for group in suit_groups if len(group) >= 5]
 
-        if not has_5_suit:
+        if len(with_5_suit_groups) == 0:
             self.next_evaluator = FourOfAKindEvaluator()
             return self.next_evaluator.evaluate_hand(community_cards, pocket_cards)
 
+        with_5_suit = with_5_suit_groups[0]
         with_5_suit.sort(key=lambda c: c.value)
         for i in range(1, len(with_5_suit)):
             if with_5_suit[i].value - with_5_suit[i-1].value != 1:
                 self.next_evaluator = FourOfAKindEvaluator()
                 return self.next_evaluator.evaluate_hand(community_cards, pocket_cards)
 
-        highest_in_hand_value = with_5_suit[-1].value
         if pocket_cards[0].value >= pocket_cards[1].value:
             kicker_value = pocket_cards[0].value
         else:
             kicker_value = pocket_cards[1].value
         return EvaluatedHand(
             hand_value=HandValue.STRAIGHT_FLUSH,
-            highest_in_hand_value=highest_in_hand_value,
+            highest_in_hand_value=with_5_suit[-1].value,
             kicker_value=kicker_value)
 
 class FourOfAKindEvaluator(AbsHandEvaluator):
@@ -120,15 +111,9 @@ class FourOfAKindEvaluator(AbsHandEvaluator):
         total_cards = community_cards + pocket_cards
         rank_groups = self.group_by_rank(total_cards)
 
-        has_4_ranks = False
-        with_4_ranks = []
-        for same_rank in rank_groups:
-            if len(same_rank) == 4:
-                with_4_ranks = same_rank
-                has_4_ranks = True
-                break
+        with_4_ranks = [group for group in rank_groups if len(group) >= 4]
 
-        if not has_4_ranks:
+        if len(with_4_ranks) == 0:
             self.next_evaluator = FullHouseEvaluator()
             return self.next_evaluator.evaluate_hand(community_cards, pocket_cards)
 
@@ -138,7 +123,7 @@ class FourOfAKindEvaluator(AbsHandEvaluator):
             kicker_value = pocket_cards[1].value
         return EvaluatedHand(
             hand_value=HandValue.FOUR_OF_A_KIND,
-            highest_in_hand_value=with_4_ranks[0].value,
+            highest_in_hand_value=with_4_ranks[0][0].value,
             kicker_value=kicker_value)
 
 class FullHouseEvaluator(AbsHandEvaluator):
@@ -179,26 +164,20 @@ class FlushEvaluator(AbsHandEvaluator):
         total_cards = community_cards + pocket_cards
         suit_groups = self.group_by_suits(total_cards)
 
-        has_5_suit = False
-        with_5_suit = List[Card]
-        for same_suit in suit_groups:
-            if len(same_suit) >= 5:
-                with_5_suit = same_suit
-                has_5_suit = True
-                break
+        with_5_suit = [group for group in suit_groups if len(group) >= 5]
 
-        if not has_5_suit:
+        if len(with_5_suit) == 0:
             self.next_evaluator = StraightEvaluator()
             return self.next_evaluator.evaluate_hand(community_cards, pocket_cards)
 
-        with_5_suit.sort(key=lambda c: c.value)
+        with_5_suit[0].sort(key=lambda c: c.value, reverse=True)
         if pocket_cards[0].value >= pocket_cards[1].value:
             kicker_value = pocket_cards[0].value
         else:
             kicker_value = pocket_cards[1].value
         return EvaluatedHand(
             hand_value=HandValue.FLUSH,
-            highest_in_hand_value=with_5_suit[-1].value,
+            highest_in_hand_value=with_5_suit[0][0].value,
             kicker_value=kicker_value)
 
 class StraightEvaluator(AbsHandEvaluator):
@@ -233,15 +212,9 @@ class ThreeOfAKindEvaluator(AbsHandEvaluator):
         total_cards = community_cards + pocket_cards
         rank_groups = self.group_by_rank(total_cards)
 
-        has_3_ranks = False
-        with_3_ranks = []
-        for same_rank in rank_groups:
-            if len(same_rank) == 3:
-                with_3_ranks = same_rank
-                has_3_ranks = True
-                break
+        three_of_a_kind_cards = [group for group in rank_groups if len(group) == 3]
 
-        if not has_3_ranks:
+        if len(three_of_a_kind_cards) == 0:
             self.next_evaluator = TwoPairsEvaluator()
             return self.next_evaluator.evaluate_hand(community_cards, pocket_cards)
 
@@ -251,7 +224,7 @@ class ThreeOfAKindEvaluator(AbsHandEvaluator):
             kicker_value = pocket_cards[1].value
         return EvaluatedHand(
             hand_value=HandValue.THREE_OF_A_KIND,
-            highest_in_hand_value=with_3_ranks[0].value,
+            highest_in_hand_value=three_of_a_kind_cards[0][0].value,
             kicker_value=kicker_value)
 
 class TwoPairsEvaluator(AbsHandEvaluator):
@@ -259,21 +232,9 @@ class TwoPairsEvaluator(AbsHandEvaluator):
         total_cards = community_cards + pocket_cards
         rank_groups = self.group_by_rank(total_cards)
 
-        has_2_ranks_1 = False
-        has_2_ranks_2 = False
-        with_2_ranks_1 = []
-        with_2_ranks_2 = []
-        for same_rank in rank_groups:
-            if len(same_rank) == 2 and not has_2_ranks_1:
-                with_2_ranks_1 = same_rank
-                has_2_ranks_1 = True
-                continue
-            if len(same_rank) == 2 and not has_2_ranks_2:
-                with_2_ranks_2 = same_rank
-                has_2_ranks_2 = True
-                break
+        two_pairs_cards = [group for group in rank_groups if len(group) == 2]
 
-        if not has_2_ranks_1 or not has_2_ranks_2:
+        if len(two_pairs_cards) < 2:
             self.next_evaluator = OnePairEvaluator()
             return self.next_evaluator.evaluate_hand(community_cards, pocket_cards)
 
@@ -283,8 +244,8 @@ class TwoPairsEvaluator(AbsHandEvaluator):
             kicker_value = pocket_cards[1].value
         return EvaluatedHand(
             hand_value=HandValue.TWO_PAIRS,
-            highest_in_hand_value=with_2_ranks_1[0].value,
-            highest_in_hand_value_2=with_2_ranks_2[0].value,
+            highest_in_hand_value=two_pairs_cards[0][0].value,
+            highest_in_hand_value_2=two_pairs_cards[1][0].value,
             kicker_value=kicker_value)
 
 class OnePairEvaluator(AbsHandEvaluator):
