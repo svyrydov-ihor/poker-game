@@ -185,6 +185,7 @@ class PreFlopState(AbsGameState):
     async def start_flow(self):
         await self.deal_player_cards()
         await self.run_betting_round()
+
         next_state = FlopState(self.game)
         self.game.set_game_state(next_state)
         await next_state.start_flow()
@@ -231,4 +232,24 @@ class FlopState(AbsGameState):
 
     async def start_flow(self):
         await self._deal_community_cards(3)
+        await self.run_betting_round()
+
+        next_state = TurnState(self.game)
+        self.game.set_game_state(next_state)
+        await next_state.start_flow()
+
+class TurnState(FlopState):
+    @override
+    async def start_flow(self):
+        await self._deal_community_cards(1)
+        await self.run_betting_round()
+
+        next_state = RiverState(self.game)
+        self.game.set_game_state(next_state)
+        await next_state.start_flow()
+
+class RiverState(FlopState):
+    @override
+    async def start_flow(self):
+        await self._deal_community_cards(1)
         await self.run_betting_round()
