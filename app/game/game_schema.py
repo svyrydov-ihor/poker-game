@@ -25,6 +25,18 @@ class PlayerAction(enum.Enum):
     RAISE = "RAISE"
     FOLD = "FOLD"
 
+class HandValue(enum.Enum):
+    HIGH_CARD = 0
+    ONE_PAIR = 1
+    TWO_PAIRS = 2
+    THREE_OF_A_KIND = 3
+    STRAIGHT = 4
+    FLUSH = 5
+    FULL_HOUSE = 6
+    FOUR_OF_A_KIND = 7
+    STRAIGHT_FLUSH = 8
+    ROYAL_FLUSH = 9
+
 class AbsGamePhaseArgs(ABC, BaseModel):
     class Config:
         arbitrary_types_allowed = True
@@ -85,6 +97,20 @@ class TurnRequestArgs(AbsGamePhaseArgs):
     prev_bet: float
     prev_raise: float
     options: List[PlayerAction]
+
+class ShowdownWinnerArgs(AbsGamePhaseArgs):
+    winner: Player
+    won_pot: float
+    hand: HandValue
+
+class ShowdownLostArgs(AbsGamePhaseArgs):
+    players: dict[Player, HandValue]
+
+class EvaluatedHand(BaseModel):
+    hand_value: HandValue
+    highest_in_hand_value: int
+    highest_in_hand_value_2: Optional[int] = None
+    kicker_value: int
 
 class TurnResponse(BaseModel):
     action: PlayerAction
