@@ -74,6 +74,12 @@ class WSMessageProcessor{
             case "POCKET_CARDS":
                 this.handler = new PocketCardsHandler(data[key1]);
                 break;
+            case "SHOWDOWN_WINNERS":
+                this.handler = new ShowdownWinnersHandler(data[key1]);
+                break;
+            case "SHOWDOWN_LOSERS":
+                this.handler = new ShowdownLosersHandler(data[key1]);
+                break;
             default:
                 this.handler = new LogsHandler("Unknown state");
                 break;
@@ -609,5 +615,54 @@ class CommunityCardsHandler extends AbsGamePhaseHandler{
                 cardPlaceholder.textContent = cards[i]["suit"] + cards[i]["rank"];
             }
         }
+    }
+}
+
+const HandNames = Object.freeze({
+    0: "High Card",
+    1: "One Pair",
+    2: "Two Pairs",
+    3: "Three of a Kind",
+    4: "Straight",
+    5: "Flush",
+    6: "Full House",
+    7: "Four of a Kind",
+    8: "Straight Flush",
+    9: "Royal Flush",
+});
+
+class ShowdownWinnersHandler extends AbsGamePhaseHandler{
+    handle(){
+        let data = this.args;
+        let winners = data["winners"];
+        winners.forEach(winner => {
+            let balance_element = document.getElementById(winner["winner"]["id"] + "_balance");
+            balance_element.textContent = "Balance: $" + winner["winner"]["balance"];
+            let i=0
+            winner["pocket_cards"].forEach(card => {
+                let card_element = document.getElementById(winner["winner"]["id"] + "_card_" + i);
+                card_element.textContent = card["suit"] + card["rank"];
+                i+=1
+            })
+            let turn_element = document.getElementById(winner["winner"]["id"] + "_turn");
+            turn_element.textContent = HandNames[winner["hand"]] + " winner";
+        })
+    }
+}
+
+class ShowdownLosersHandler extends AbsGamePhaseHandler{
+    handle() {
+        let data = this.args;
+        let losers = data["losers"];
+        losers.forEach(loser => {
+            let i=0
+            loser["pocket_cards"].forEach(card => {
+                let card_element = document.getElementById(loser["player"]["id"] + "_card_" + i);
+                card_element.textContent = card["suit"] + card["rank"];
+                i+=1
+            })
+            let turn_element = document.getElementById(loser["player"]["id"] + "_turn");
+            turn_element.textContent = HandNames[loser["hand"]];
+        })
     }
 }

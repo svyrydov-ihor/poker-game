@@ -116,6 +116,8 @@ class Game:
         self.prev_dealer_pos = self.curr_dealer_pos
         self.curr_dealer_pos = (self.curr_dealer_pos + 1) % len(self.players)
         self.pot = 0
+        self.folded = []
+        self.table.community_cards = []
         self.table.reset_deck()
         ordered_ids = [p.id for p in self.players]
 

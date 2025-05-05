@@ -36,7 +36,6 @@ class AbsHandEvaluator(ABC):
         """
         cards = [c for c in total_cards]
         cards.sort(key=lambda c: c.value, reverse=True)
-        print(cards)
         rank_groups = []
         rank_groups.append([])
         prev_rank = cards[0].value

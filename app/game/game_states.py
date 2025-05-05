@@ -4,8 +4,9 @@ from starlette.responses import RangeNotSatisfiable
 from typing_extensions import override
 
 from app.game.game_schema import *
-from typing import TYPE_CHECKING, List, Set
+from typing import TYPE_CHECKING, List, Set, Dict
 
+from app.game.hand_evaluator import RoyalFlushEvaluator
 from app.game.player_action_commands import *
 
 if TYPE_CHECKING:
@@ -253,3 +254,96 @@ class RiverState(FlopState):
     async def start_flow(self):
         await self._deal_community_cards(1)
         await self.run_betting_round()
+
+        next_state = ShowdownState(self.game)
+        self.game.set_game_state(next_state)
+        await next_state.start_flow()
+
+class ShowdownState(AbsGameState):
+    @override
+    async def start_flow(self):
+        (winners, losers) = self.process_showdown()
+        await self.broadcast_showdown_results(winners, losers)
+
+    def evaluate_hands(self)->EvaluatedHands:
+        players_hands: Dict[Player, EvaluatedHand] = {}
+        leading_hands: List[Tuple[Player, EvaluatedHand]] = [None]
+        active_players = [p for p in self.game.players if p not in self.game.folded]
+        for player in active_players:
+            evaluator = RoyalFlushEvaluator()
+            hand = evaluator.evaluate_hand(community_cards=self.game.table.community_cards,
+                                    pocket_cards=player.get_poket_cards())
+            if leading_hands[0] is None:
+                leading_hands = [(player, hand)]
+            elif hand > leading_hands[0][1]:
+                leading_hands = [(player, hand)]
+            elif hand == leading_hands[0][1]:
+                leading_hands.append((player, hand))
+            players_hands[player] = hand
+        return EvaluatedHands(
+            players_hands=players_hands,
+            leading_hands=leading_hands)
+
+    def process_showdown(self)->(ShowdownWinnerListArgs, ShowdownLoserListArgs):
+        evaluated_hands = self.evaluate_hands()
+        players_hands = evaluated_hands.players_hands
+        leading_hands = evaluated_hands.leading_hands
+        winning_players: List[Player] = [hand[0] for hand in leading_hands if hand[0] not in self.game.folded]
+
+        winners: List[ShowdownWinnerArgs] = []
+        if len(leading_hands) > 1:
+            divided_pot = self.game.pot // len(leading_hands)
+            remainder = self.game.pot % len(leading_hands)
+            winners_count = 0
+
+            curr_pos = self.game.sb_pos
+            while winners_count != len(leading_hands):
+                curr_player = self.game.players[curr_pos]
+                if curr_player in winning_players:
+                    won_pot = divided_pot
+                    if winners_count == 0:
+                        won_pot += remainder
+                    curr_player.balance += won_pot
+                    winners_count += 1
+                    winners.append(ShowdownWinnerArgs(
+                        winner=curr_player,
+                        won_pot=won_pot,
+                        hand=players_hands[curr_player].hand_value,
+                        pocket_cards=curr_player.get_poket_cards()
+                    ))
+        else:
+            winner = winning_players[0]
+            winner.balance += self.game.pot
+            winners.append(ShowdownWinnerArgs(
+                winner=winner,
+                won_pot=self.game.pot,
+                hand=players_hands[winner].hand_value,
+                pocket_cards=winner.get_poket_cards()
+            ))
+
+        losers: List[ShowdownLoserArgs] = []
+        lost_players = [p for p in players_hands.keys() if p not in winning_players]
+        for player in lost_players:
+            losers.append(ShowdownLoserArgs(
+                player=player,
+                hand=players_hands[player].hand_value,
+                pocket_cards=player.get_poket_cards()
+            ))
+
+        return ShowdownWinnerListArgs(winners=winners), ShowdownLoserListArgs(losers=losers)
+
+    async def broadcast_showdown_results(self, winners: ShowdownWinnerListArgs, losers: ShowdownLoserListArgs):
+        await self.game.game_handler.broadcast(GamePhase.SHOWDOWN_WINNERS, winners)
+        await self.game.game_handler.broadcast(GamePhase.SHOWDOWN_LOSERS, losers)
+
+    async def _before_betting_round_action(self):
+        pass
+
+    def _get_init_turn_options(self):
+        pass
+
+    def _get_init_aggressor_pos(self):
+        pass
+
+    def _get_starting_pos(self):
+        pass
