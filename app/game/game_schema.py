@@ -2,9 +2,8 @@ import enum
 from abc import ABC
 from typing import Optional, List, TYPE_CHECKING, Dict, Tuple
 from pydantic.v1 import BaseModel
-from typing_extensions import override
-
 from app.game.models import Player, Card
+
 if TYPE_CHECKING:
     from app.game.game import Game
 

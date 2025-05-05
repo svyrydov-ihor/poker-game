@@ -1,10 +1,7 @@
-import asyncio
-from abc import ABC, abstractmethod
-from typing import List
-
+from abc import abstractmethod
 from app.game.game_schema import *
 from app.game.game_states import PreFlopState, AbsGameState
-from app.game.models import Player, Card
+from app.game.models import Player
 from app.game.table import Table
 
 class AbsGameHandler(ABC):

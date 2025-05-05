@@ -1,8 +1,6 @@
 import asyncio
 from typing import Dict
-
 from starlette.websockets import WebSocket
-
 from app.game.game_schema import TurnResponse, PlayerAction, GamePhase, TurnRequestArgs
 
 class ConnectionManager:
@@ -36,7 +34,9 @@ class ConnectionManager:
         await self.broadcast({"LOG": msg})
 
     async def request_turn(self, player_id: int, turn_request_args: TurnRequestArgs) -> TurnResponse:
-        """Sends a turn request to a player and waits for their response."""
+        """
+        Sends a turn request to a player and waits for their response
+        """
         if player_id not in self.active_connections:
             return TurnResponse(action=PlayerAction.FOLD, amount=0)
 
@@ -55,9 +55,9 @@ class ConnectionManager:
             return TurnResponse(action=PlayerAction.FOLD, amount=0)
 
     def process_turn_response(self, player_id: int, turn_response: TurnResponse):
-        """Processes the turn response received from a player."""
+        """
+        Processes the turn response received from a player
+        """
         if player_id in self.pending_turns and not self.pending_turns[player_id].done():
-            # Validate the received action against the allowed options (optional, but good practice)
-            # For simplicity, we'll assume the client sends a valid action from the options provided earlier
             turn_result = TurnResponse(action=turn_response.action, amount=turn_response.amount)
             self.pending_turns[player_id].set_result(turn_result)

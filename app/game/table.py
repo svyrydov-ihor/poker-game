@@ -1,5 +1,5 @@
 import random
-from typing import Dict, List
+from typing import List
 from app.game.models import Player, Card
 
 class Table:

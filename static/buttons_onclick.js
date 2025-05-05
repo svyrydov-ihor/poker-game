@@ -1,12 +1,10 @@
 async function readyButtonClick(button) {
     let is_ready = true
     if (button.classList.contains("not-ready")) {
-        // If currently not ready, switch to ready
         button.classList.remove("not-ready");
         button.classList.add("ready");
         is_ready = true;
     } else {
-        // If currently ready (or no class yet), switch to not ready
         button.classList.remove("ready");
         button.classList.add("not-ready");
         is_ready = false;
