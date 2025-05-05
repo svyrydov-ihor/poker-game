@@ -113,6 +113,7 @@ class Game:
 
     async def start_game(self):
         self.is_game_started = True
+        self.players = self.table.players
         self.prev_dealer_pos = self.curr_dealer_pos
         self.curr_dealer_pos = (self.curr_dealer_pos + 1) % len(self.players)
         self.pot = 0
@@ -128,3 +129,10 @@ class Game:
 
         self.set_game_state(PreFlopState(self))
         await self.game_state.start_flow()
+        await self.reset_players_ready()
+
+    async def reset_players_ready(self):
+        for player in self.table.players:
+            player.is_ready = False
+        self.is_game_started = False
+        await self.game_handler.broadcast(GamePhase.PLAY_AGAIN, PotArgs(pot=self.pot))

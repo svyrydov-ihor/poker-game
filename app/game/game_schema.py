@@ -22,6 +22,7 @@ class GamePhase(enum.Enum):
     SHOWDOWN_LOSERS = "SHOWDOWN_LOSERS"
     POT = "POT"
     IS_READY = "IS_READY"
+    PLAY_AGAIN = "PLAY_AGAIN"
 
 class PlayerAction(enum.Enum):
     CALL = "CALL"

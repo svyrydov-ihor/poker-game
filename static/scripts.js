@@ -80,6 +80,9 @@ class WSMessageProcessor{
             case "SHOWDOWN_LOSERS":
                 this.handler = new ShowdownLosersHandler(data[key1]);
                 break;
+            case "PLAY_AGAIN":
+                this.handler = new PlayAgainHandler(data[key1]);
+                break;
             default:
                 this.handler = new LogsHandler("Unknown state");
                 break;
@@ -350,6 +353,8 @@ class PreStartHandler extends AbsGamePhaseHandler{
              const card1 = document.getElementById(id + "_card_1");
              if(card0) card0.textContent = ''; card0.style.display = 'none';
              if(card1) card1.textContent = ''; card1.style.display = 'none';
+             let turn = document.getElementById(id + "_turn");
+             turn.textContent = '';
         });
 
         // Hide ready button (existing logic)
@@ -664,5 +669,13 @@ class ShowdownLosersHandler extends AbsGamePhaseHandler{
             let turn_element = document.getElementById(loser["player"]["id"] + "_turn");
             turn_element.textContent = HandNames[loser["hand"]];
         })
+    }
+}
+
+class PlayAgainHandler extends AbsGamePhaseHandler{
+    handle() {
+        let ready_button = document.getElementById("ready_button");
+        ready_button.className = "not-ready";
+        ready_button.style.display = "flex";
     }
 }

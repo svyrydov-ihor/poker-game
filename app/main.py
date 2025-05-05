@@ -16,7 +16,6 @@ from app.game.game_schema import GamePhase, NewPlayerArgs, TurnResponse, PlayerA
 from app.game.models import Player
 from app.game.table import Table
 
-
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
@@ -38,27 +37,31 @@ table = Table()
 
 @app.post("/player-ready/{client_id}")
 async def player_ready(client_id: int, is_player_ready: IsPlayerReady):
+    global table
+    if game_instance is not None and game_instance.is_game_started:
+        return HTTPStatus.CONFLICT
+
     is_ready = is_player_ready.is_player_ready
-    try:
-        for p in table.players:
-            if p.id == client_id:
-                p.is_ready = is_ready
-        log_text = ""
-        if is_ready:
-            log_text = f"Player {client_id} is ready ✅"
-        else:
-            log_text = f"Player {client_id} is not ready ❌"
-        await connection_manager.log(log_text)
-        await connection_manager.broadcast({GamePhase.IS_READY.value: IsReadyArgs(
-            player_id=client_id,
-            is_ready=is_ready
-        ).dict()})
 
-        if all(p.is_ready == True for p in table.players):
-             asyncio.create_task(start_game())
+    for p in table.players:
+        print(p.name)
+        print(p.is_ready)
+        print("\n-----\n")
+        if p.id == client_id:
+            p.is_ready = is_ready
 
-    except Exception as e:
-        logger.debug(e)
+    if is_ready:
+        log_text = f"Player {client_id} is ready ✅"
+    else:
+        log_text = f"Player {client_id} is not ready ❌"
+    await connection_manager.log(log_text)
+    await connection_manager.broadcast({GamePhase.IS_READY.value: IsReadyArgs(
+        player_id=client_id,
+        is_ready=is_ready
+    ).dict()})
+
+    if all(p.is_ready == True for p in table.players):
+         asyncio.create_task(start_game())
 
     return HTTPStatus.OK
 
@@ -71,18 +74,23 @@ async def start_game():
              await connection_manager.log("Not enough players to start.")
              return
 
-        game_handler = ConcreteGameHandler(table.players, [], 5, 10, connection_manager)
-        game_builder = ConcreteGameBuilder()
-        game_builder.set_game_handler(game_handler)
-        game_builder.set_table(table)
-        game_builder.set_small_blind_amount(5)
-        game_builder.set_big_blind_amount(10)
-        game_builder.set_min_raise_amount(5)
-        game_instance = game_builder.get_built_game()
+        if game_instance is None:
+            game_instance = build_game()
+
         await connection_manager.log("Game started ❗")
         asyncio.create_task(game_instance.start_game())
     except Exception as e:
         logger.exception("Error starting game:" + e)
+
+def build_game() -> Game:
+    game_handler = ConcreteGameHandler(table.players, [], 5, 10, connection_manager)
+    game_builder = ConcreteGameBuilder()
+    game_builder.set_game_handler(game_handler)
+    game_builder.set_table(table)
+    game_builder.set_small_blind_amount(5)
+    game_builder.set_big_blind_amount(10)
+    game_builder.set_min_raise_amount(5)
+    return game_builder.get_built_game()
 
 @app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: int):
@@ -137,8 +145,3 @@ async def websocket_endpoint(websocket: WebSocket, client_id: int):
         await connection_manager.log(f"Player {client_name} left")
     except Exception as e:
         logger.exception(f"Error in websocket connection with client {client_id}:" + e)
-
-'''
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True, log_level="debug")
-'''
