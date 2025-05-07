@@ -5,11 +5,11 @@ from app.game.models import Player
 from app.game.table import Table
 
 class AbsGameHandler(ABC):
-    def __init__(self, players: List[Player], spectators, sb_amount, bb_amount):
-        self.players = players
-        self.spectators = spectators
-        self.sb_amount = sb_amount
-        self.bb_amount = bb_amount
+    def __init__(self, players: List[Player], spectators: List[Player], sb_amount: float, bb_amount: float):
+        self.players: List[Player] = players
+        self.spectators: List[Player] = spectators
+        self.sb_amount: float = sb_amount
+        self.bb_amount: float = bb_amount
 
     @abstractmethod
     async def broadcast(self, game_phase: GamePhase, abs_game_phase_args: AbsGamePhaseArgs)->None:
@@ -51,39 +51,39 @@ class AbsGameBuilder(ABC):
 
 class ConcreteGameBuilder(AbsGameBuilder):
     def __init__(self):
-        self.game = Game()
+        self._game = Game()
         self.reset()
 
     def reset(self):
-        self.game = Game()
+        self._game = Game()
 
     def set_game_handler(self, game_handler: AbsGameHandler) -> None:
-        self.game.game_handler = game_handler
+        self._game.game_handler = game_handler
 
     def set_table(self, table: Table) -> None:
-        self.game.table = table
-        self.game.players = table.players
-        self.game.folded = []
+        self._game.table = table
+        self._game.players = table.players
+        self._game.folded = []
 
     def set_small_blind_amount(self, sb_amount: float) -> None:
         if sb_amount <= 0:
             raise ValueError("Small blind value must be positive")
-        self.game.sb_amount = sb_amount
+        self._game.sb_amount = sb_amount
 
     def set_big_blind_amount(self, bb_amount: float) -> None:
         if bb_amount <= 0:
             raise ValueError("Big blind value must be positive")
-        elif bb_amount <= self.game.sb_amount:
+        elif bb_amount <= self._game.sb_amount:
             raise ValueError("Big blind must be bigger than small blind")
-        self.game.bb_amount = bb_amount
+        self._game.bb_amount = bb_amount
 
     def set_min_raise_amount(self, min_raise: float) -> None:
         if min_raise <= 0:
             raise ValueError("Minimum raise amount must be positive")
-        self.game.min_raise = min_raise
+        self._game.min_raise = min_raise
 
     def get_built_game(self) -> 'Game':
-        return self.game
+        return self._game
 
 class Game:
     """
@@ -100,9 +100,9 @@ class Game:
         self.min_raise: float = 0
         self.players: List[Player] = []
         self.folded: List[Player] = []
-        self.sb_pos = -1
-        self.bb_pos = -1
-        self.is_game_started = False
+        self.sb_pos: int = -1
+        self.bb_pos: int = -1
+        self.is_game_started: bool = False
         self.game_state: AbsGameState = None
 
     def set_game_state(self, game_state: AbsGameState):
