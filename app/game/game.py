@@ -5,6 +5,9 @@ from app.game.models import Player
 from app.game.table import Table
 
 class AbsGameHandler(ABC):
+    """
+    Implementation for Bridge pattern between game and game handler
+    """
     def __init__(self, players: List[Player], spectators: List[Player], sb_amount: float, bb_amount: float):
         self.players: List[Player] = players
         self.spectators: List[Player] = spectators
@@ -88,6 +91,7 @@ class ConcreteGameBuilder(AbsGameBuilder):
 class Game:
     """
     Should be constructed using AbsGameBuilder implementations
+    Abstraction for Bridge pattern between game and game handler
     """
     def __init__(self):
         self.table: Table = Table()

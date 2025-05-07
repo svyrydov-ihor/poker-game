@@ -4,6 +4,9 @@ from app.game.game_schema import *
 from app.game.models import Player
 
 class ConcreteGameHandler(AbsGameHandler):
+    """
+    Concrete implementation for Bridge pattern between game and game handler
+    """
     def __init__(self, players: List[Player], spectators, sb_amount, bb_amount, connection_manager: ConnectionManager):
         super().__init__(players, spectators, sb_amount, bb_amount)
         self.connection_manager = connection_manager
