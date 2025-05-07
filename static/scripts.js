@@ -619,6 +619,8 @@ class ShowdownWinnersHandler extends AbsGamePhaseHandler{
             winner["pocket_cards"].forEach(card => {
                 let card_element = document.getElementById(winner["winner"]["id"] + "_card_" + i);
                 card_element.textContent = card["suit"] + card["rank"];
+                card_element.className = "card-display"
+                card_element.style.display = 'inline-flex';
                 i+=1
             })
             let turn_element = document.getElementById(winner["winner"]["id"] + "_turn");
@@ -635,7 +637,10 @@ class ShowdownLosersHandler extends AbsGamePhaseHandler{
             let i=0
             loser["pocket_cards"].forEach(card => {
                 let card_element = document.getElementById(loser["player"]["id"] + "_card_" + i);
+                console.log(card_element)
                 card_element.textContent = card["suit"] + card["rank"];
+                card_element.className = "card-display"
+                card_element.style.display = 'inline-flex';
                 i+=1
             })
             let turn_element = document.getElementById(loser["player"]["id"] + "_turn");
